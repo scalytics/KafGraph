@@ -1,4 +1,4 @@
-![alt text](docs/image-3.png)
+![alt text](docs/assets/images/image-3.png)
 
 # KafGraph
 
