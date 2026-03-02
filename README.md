@@ -1,3 +1,5 @@
+![alt text](docs/image-3.png)
+
 # KafGraph
 
 **KafGraph becomes the distributed shared brain of collaborating agents.**
