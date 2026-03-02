@@ -91,7 +91,26 @@ changing any meaning. They serve as a quick-reference summary.
   from passive audit records to **active, queryable, reflective knowledge**.
 - KafGraph is therefore the *learning layer* that sits above KafClaw's *audit layer*.
 
-### 6. Deployment Model
+### 6. The Agent Brain — Self-Owned, Agent-Accessible Memory
+
+- KafGraph is the **distributed shared brain of collaborating agents** — a
+  database-backed knowledge system that the team owns outright.
+- **The memory problem**: every new session starts from zero; every tool switch loses
+  context; platform-provided memories (Claude memory, ChatGPT memory) are walled gardens
+  that create lock-in and don't follow agents across tools.
+- **The solution**: one brain (KafGraph), every agent. The brain is accessed through
+  **tool calls** — standard JSON-schema functions callable from any LLM agent runtime.
+  In a KafClaw group, the brain registers as a skill (`kafgraph_brain`) and is
+  auto-discovered by all agents via the roster topic.
+- Every conversation, decision, insight, and feedback captured makes the brain smarter.
+  The advantage compounds: reflection cycles discover patterns, human feedback confirms
+  what matters, and the graph grows richer with every interaction.
+- The brain is self-owned infrastructure — no SaaS middlemen, no vendor lock-in,
+  no protocol middleware. Switching AI providers doesn't lose any context.
+- See `about-agent-brains.md` for the foundational thinking on agent-readable memory
+  systems and the "Open Brain" architecture that inspired this direction.
+
+### 7. Deployment Model
 
 - **Per-agent mode**: each agent runs its own embedded graph instance for local
   introspection and fast self-reflection.
@@ -104,15 +123,15 @@ changing any meaning. They serve as a quick-reference summary.
 
 ## Open Questions (as of initial capture)
 
-| # | Question | Owner |
-|---|----------|-------|
-| Q1 | What specific Kafka topic schema does KafClaw use for conversations? | KafClaw team |
-| Q2 | What is the expected conversation volume per agent per day? | Product |
-| Q3 | How is "impact" measured — heuristically, via LLM scoring, or human rating? | Architecture |
-| Q4 | What SLA is required for reflection results to be available after a cycle ends? | Product |
-| Q5 | Is a Neo4j-compatible Cypher query surface required, or is it a preference? | Architecture |
-| Q6 | Which S3 provider and KafScale version are in scope for the first release? | Infrastructure |
-| Q7 | Who is "the owner" for human feedback requests — individual human, team lead, or configurable? | Product |
+| # | Question | Owner | Status |
+|---|----------|-------|--------|
+| Q1 | What specific Kafka topic schema does KafClaw use for conversations? | KafClaw team | **RESOLVED** — see `kafclaw-topic-reference.md`. KafClaw uses `group.<group_name>.*` topic hierarchy with `GroupEnvelope` JSON wire format. 11 core topics + dynamic skill topics per group. |
+| Q2 | What is the expected conversation volume per agent per day? | Product | **RESOLVED** — ~10 events/minute/agent = ~14,400 events/day/agent. |
+| Q3 | How is "impact" measured — heuristically, via LLM scoring, or human rating? | Architecture | **RESOLVED** — Human feedback tracking both positive and negative impact. Impact is measured through human assessment of agent actions, not heuristics alone. |
+| Q4 | What SLA is required for reflection results to be available after a cycle ends? | Product | **RESOLVED** — 1 day after cycle end is acceptable. |
+| Q5 | Is a Neo4j-compatible Cypher query surface required, or is it a preference? | Architecture | **RESOLVED** — KafGraph must provide its own query endpoint in a well-accepted graph query language. Neo4j and TigerGraph remain optional external integrations (cost overhead for autonomous setup). The query surface must also support **embedding-based queries** (vector similarity) and **full-text search** on text items in the graph. |
+| Q6 | Which S3 provider and KafScale version are in scope for the first release? | Infrastructure | **RESOLVED** — KafScale 2.7.0 with **MinIO** as the S3-compatible object store. |
+| Q7 | Who is "the owner" for human feedback requests — individual human, team lead, or configurable? | Product | **RESOLVED** — The **team leader and designated experts**, configurable per group. |
 
 ---
 
