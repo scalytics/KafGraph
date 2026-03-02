@@ -137,6 +137,17 @@ fmt: ## Format Go source files
 fmt-check: ## Check formatting (CI gate)
 	@test -z "$$(gofmt -l .)" || (echo "Files not formatted:"; gofmt -l .; exit 1)
 
+# ─── Security ────────────────────────────────────────────────────────────────
+
+.PHONY: sec
+sec: ## Run security checks (gosec via lint + govulncheck)
+	$(GOLANGCI_LINT) run $(GOLANGCI_FLAGS) --enable-only gosec ./...
+	govulncheck ./...
+
+.PHONY: vulncheck
+vulncheck: ## Check for known vulnerabilities in dependencies
+	govulncheck ./...
+
 # ─── Docker ──────────────────────────────────────────────────────────────────
 
 .PHONY: docker-build
@@ -211,7 +222,7 @@ dev-clean: clean docker-down ## Clean everything including Docker
 # ─── Commit Check (pre-push quality gate) ────────────────────────────────────
 
 .PHONY: commit-check
-commit-check: fmt vet test-race cover-check ## Pre-commit quality gate (fmt, vet, race, coverage)
+commit-check: fmt vet test-race cover-check vulncheck ## Pre-commit quality gate (fmt, vet, race, coverage, vulncheck)
 	@echo "commit-check passed — safe to push."
 
 .PHONY: commit-and-push
@@ -229,5 +240,5 @@ commit-and-push: commit-check ## Run quality gates, auto-generate commit message
 # ─── CI ──────────────────────────────────────────────────────────────────────
 
 .PHONY: ci
-ci: lint test-race cover-check fmt-check ## Simulate CI pipeline locally
+ci: lint test-race cover-check fmt-check sec ## Simulate CI pipeline locally
 	@echo "CI checks passed."

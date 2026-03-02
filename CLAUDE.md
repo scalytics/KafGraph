@@ -80,14 +80,14 @@ make ci              # Simulate CI pipeline locally
 
 **Never commit directly to main after the initial scaffold.** Configure GitHub branch
 protection rules: require PR with 0 approvals minimum, merge only after all CI checks
-(including CodeQL) pass. A single broken commit can block the workflow for hours —
-clean code in main is worth the discipline.
+pass. A single broken commit can block the workflow for hours — clean code in main is
+worth the discipline.
 
 ### Pre-push checklist (`make commit-check`)
 
-Every push must pass: `go fmt`, `go vet`, `go test -race`, and 80% coverage minimum.
-Run `make commit-check` before every push. The pre-commit hook (`hack/pre-commit.sh`)
-enforces formatting and linting automatically.
+Every push must pass: `go fmt`, `go vet`, `go test -race`, 80% coverage minimum, and
+`govulncheck`. Run `make commit-check` before every push. The pre-commit hook
+(`hack/pre-commit.sh`) enforces formatting and linting automatically.
 
 ### CI pipeline (runs on every PR)
 
@@ -97,19 +97,24 @@ enforces formatting and linting automatically.
 4. Coverage gate — 80% minimum, 100% on critical paths (storage, graph, server)
 5. `gofmt` check — consistent formatting
 6. License header check — Apache 2.0 on all `.go` files
-7. CodeQL analysis — security vulnerability scanning (blocks merge on findings)
-8. Docs sync check — documentation matches code
+7. `gosec` — security-focused static analysis (blocks merge on findings)
+8. `govulncheck` — known vulnerability scanning in dependencies
+9. Docs sync check — documentation matches code
 
-### CodeQL is mandatory
+### Security scanning (free, no GitHub Advanced Security needed)
 
-CodeQL security analysis runs on every PR and weekly on main. PRs with CodeQL
-findings cannot be merged. This prevents security issues from accumulating —
-fixing them retroactively is expensive and time-consuming.
+Instead of CodeQL ($30/month), we use two free tools that cover the same ground:
+- **gosec** — Go-specific security linter (SQL injection, command injection, hardcoded
+  credentials, weak crypto, etc.). Runs via golangci-lint on every PR.
+- **govulncheck** — Go's official vulnerability checker. Scans dependencies against the
+  Go vulnerability database. Runs on every PR and locally via `make vulncheck`.
+
+Both block merge on findings. Run `make sec` locally to check both.
 
 ### Branch protection rules (configure in GitHub Settings > Rules)
 
 - Require pull request before merging (0 reviews minimum)
-- Require status checks to pass: `ci`, `analyze` (CodeQL)
+- Require status checks to pass: `ci`, `security`
 - No direct pushes to main after initial setup
 
 ## Conventions
@@ -118,7 +123,7 @@ fixing them retroactively is expensive and time-consuming.
 - **Linter**: golangci-lint with config from `.golangci.yml`
 - **Coverage**: 80% minimum enforced by `hack/coverage.sh`; 100% on critical packages
 - **Race detection**: all tests run with `-race` in CI
-- **CodeQL**: mandatory security gate on all PRs (blocks merge on findings)
+- **Security**: gosec + govulncheck on all PRs (free, blocks merge on findings)
 - **License**: Apache 2.0 header on all `.go` files (enforced by `hack/license-header.sh`)
 - **Sync gate**: every public API change must update `docs/` and tests (release gate)
 - **Requirements**: tracked as `SPEC/FR/req-NNN.md` with monotonic numbering

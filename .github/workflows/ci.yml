@@ -42,3 +42,24 @@ jobs:
 
       - name: Check docs sync
         run: make docs-sync-check
+
+  security:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.25"
+
+      - name: Install govulncheck
+        run: go install golang.org/x/vuln/cmd/govulncheck@latest
+
+      - name: Run gosec (via golangci-lint)
+        uses: golangci/golangci-lint-action@v6
+        with:
+          version: latest
+          args: --config .golangci.yml --enable-only gosec ./...
+
+      - name: Run govulncheck
+        run: govulncheck ./...
