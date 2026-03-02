@@ -17,9 +17,11 @@
 package server
 
 import (
+	"context"
 	"encoding/binary"
 	"fmt"
 	"io"
+	"log"
 	"net"
 )
 
@@ -86,6 +88,37 @@ func Handshake(conn io.ReadWriter) (uint32, error) {
 	}
 
 	return negotiated, nil
+}
+
+// Serve accepts connections in a loop until the context is canceled.
+func (s *BoltServer) Serve(ctx context.Context) error {
+	for {
+		conn, err := s.listener.Accept()
+		if err != nil {
+			select {
+			case <-ctx.Done():
+				return nil // clean shutdown
+			default:
+				return fmt.Errorf("bolt accept: %w", err)
+			}
+		}
+		go s.handleConn(conn)
+	}
+}
+
+func (s *BoltServer) handleConn(conn net.Conn) {
+	defer func() { _ = conn.Close() }()
+	version, err := Handshake(conn)
+	if err != nil {
+		log.Printf("bolt handshake error: %v", err)
+		return
+	}
+	if version == 0 {
+		log.Printf("bolt: no supported version negotiated")
+		return
+	}
+	log.Printf("bolt: negotiated version %d.%d", version>>8, version&0xFF)
+	// Future: message framing loop (Phase 2+)
 }
 
 // Close stops the BoltServer.

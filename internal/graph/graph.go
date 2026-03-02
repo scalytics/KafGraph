@@ -18,6 +18,7 @@ package graph
 
 import (
 	"fmt"
+	"maps"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -180,6 +181,69 @@ func (g *Graph) Neighbors(id NodeID) ([]*Edge, error) {
 	defer g.mu.RUnlock()
 
 	return g.storage.EdgesByNode(id)
+}
+
+// UpsertNode creates a node with the given ID or merges properties if it exists.
+func (g *Graph) UpsertNode(id NodeID, label string, props Properties) (*Node, error) {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+
+	existing, err := g.storage.GetNode(id)
+	if err == nil {
+		// Merge properties: new keys overwrite existing.
+		maps.Copy(existing.Properties, props)
+		if err := g.storage.PutNode(existing); err != nil {
+			return nil, fmt.Errorf("upsert node: %w", err)
+		}
+		return existing, nil
+	}
+
+	node := &Node{
+		ID:         id,
+		Label:      label,
+		Properties: props,
+		CreatedAt:  time.Now().UTC(),
+	}
+	if node.Properties == nil {
+		node.Properties = Properties{}
+	}
+	if err := g.storage.PutNode(node); err != nil {
+		return nil, fmt.Errorf("upsert node: %w", err)
+	}
+	return node, nil
+}
+
+// UpsertEdge creates an edge with the given ID or merges properties if it exists.
+// Unlike CreateEdge, it does NOT verify that endpoints exist — during ingestion,
+// out-of-order messages mean we might see a response before the agent's announce.
+func (g *Graph) UpsertEdge(id EdgeID, label string, from, to NodeID, props Properties) (*Edge, error) {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+
+	existing, err := g.storage.GetEdge(id)
+	if err == nil {
+		maps.Copy(existing.Properties, props)
+		if err := g.storage.PutEdge(existing); err != nil {
+			return nil, fmt.Errorf("upsert edge: %w", err)
+		}
+		return existing, nil
+	}
+
+	edge := &Edge{
+		ID:         id,
+		Label:      label,
+		FromID:     from,
+		ToID:       to,
+		Properties: props,
+		CreatedAt:  time.Now().UTC(),
+	}
+	if edge.Properties == nil {
+		edge.Properties = Properties{}
+	}
+	if err := g.storage.PutEdge(edge); err != nil {
+		return nil, fmt.Errorf("upsert edge: %w", err)
+	}
+	return edge, nil
 }
 
 // Close shuts down the graph and releases storage resources.

@@ -49,6 +49,30 @@ func TestLoadFromEnv(t *testing.T) {
 	assert.Equal(t, "debug", cfg.LogLevel)
 }
 
+func TestIngestDefaults(t *testing.T) {
+	cfg, err := Load()
+	require.NoError(t, err)
+
+	assert.Equal(t, false, cfg.Ingest.Enabled)
+	assert.Equal(t, "5s", cfg.Ingest.PollInterval)
+	assert.Equal(t, 1000, cfg.Ingest.BatchSize)
+	assert.Equal(t, "kafgraph-ingest", cfg.Ingest.Namespace)
+	assert.Equal(t, "", cfg.Ingest.GroupName)
+}
+
+func TestIngestEnvOverride(t *testing.T) {
+	os.Setenv("KAFGRAPH_INGEST_ENABLED", "true")
+	os.Setenv("KAFGRAPH_INGEST_BATCH_SIZE", "500")
+	defer os.Unsetenv("KAFGRAPH_INGEST_ENABLED")
+	defer os.Unsetenv("KAFGRAPH_INGEST_BATCH_SIZE")
+
+	cfg, err := Load()
+	require.NoError(t, err)
+
+	assert.Equal(t, true, cfg.Ingest.Enabled)
+	assert.Equal(t, 500, cfg.Ingest.BatchSize)
+}
+
 func TestVersionVars(t *testing.T) {
 	assert.Equal(t, "dev", Version)
 	assert.Equal(t, "unknown", GitCommit)

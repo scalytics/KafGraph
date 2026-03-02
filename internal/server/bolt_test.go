@@ -17,7 +17,9 @@ package server
 
 import (
 	"bytes"
+	"context"
 	"encoding/binary"
+	"net"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -82,6 +84,40 @@ func TestNewBoltServer(t *testing.T) {
 	defer srv.Close()
 
 	assert.NotEmpty(t, srv.Addr())
+}
+
+func TestBoltServeAcceptsConnection(t *testing.T) {
+	srv, err := NewBoltServer("127.0.0.1:0")
+	require.NoError(t, err)
+	defer srv.Close()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	errCh := make(chan error, 1)
+	go func() { errCh <- srv.Serve(ctx) }()
+
+	// Dial and perform handshake
+	conn, err := net.Dial("tcp", srv.Addr())
+	require.NoError(t, err)
+	defer conn.Close()
+
+	// Send handshake: magic + 4 versions
+	binary.Write(conn, binary.BigEndian, BoltMagic)
+	binary.Write(conn, binary.BigEndian, BoltVersion4_4)
+	binary.Write(conn, binary.BigEndian, uint32(0))
+	binary.Write(conn, binary.BigEndian, uint32(0))
+	binary.Write(conn, binary.BigEndian, uint32(0))
+
+	// Read negotiated version
+	var negotiated uint32
+	err = binary.Read(conn, binary.BigEndian, &negotiated)
+	require.NoError(t, err)
+	assert.Equal(t, BoltVersion4_4, negotiated)
+
+	// Cancel to stop the server
+	cancel()
+	srv.Close()
 }
 
 // readWriter combines separate reader and writer for testing.

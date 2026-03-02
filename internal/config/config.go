@@ -40,8 +40,18 @@ type Config struct {
 	LogLevel  string `mapstructure:"log_level"`
 	LogFormat string `mapstructure:"log_format"`
 
-	Kafka KafkaConfig `mapstructure:"kafka"`
-	S3    S3Config    `mapstructure:"s3"`
+	Kafka  KafkaConfig  `mapstructure:"kafka"`
+	S3     S3Config     `mapstructure:"s3"`
+	Ingest IngestConfig `mapstructure:"ingest"`
+}
+
+// IngestConfig holds settings for the Kafka ingestion processor.
+type IngestConfig struct {
+	Enabled      bool   `mapstructure:"enabled"`
+	PollInterval string `mapstructure:"poll_interval"`
+	BatchSize    int    `mapstructure:"batch_size"`
+	Namespace    string `mapstructure:"namespace"`
+	GroupName    string `mapstructure:"group_name"`
 }
 
 // KafkaConfig holds Kafka connection settings.
@@ -78,6 +88,11 @@ func Load() (*Config, error) {
 	v.SetDefault("s3.endpoint", "localhost:9000")
 	v.SetDefault("s3.bucket", "kafgraph")
 	v.SetDefault("s3.use_ssl", false)
+	v.SetDefault("ingest.enabled", false)
+	v.SetDefault("ingest.poll_interval", "5s")
+	v.SetDefault("ingest.batch_size", 1000)
+	v.SetDefault("ingest.namespace", "kafgraph-ingest")
+	v.SetDefault("ingest.group_name", "")
 
 	// Config file
 	v.SetConfigName("kafgraph")

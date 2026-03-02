@@ -217,3 +217,95 @@ func TestNeighbors(t *testing.T) {
 	require.NoError(t, err)
 	assert.Len(t, edges, 2)
 }
+
+func TestUpsertNodeCreate(t *testing.T) {
+	g := New(newMemStorage())
+	defer g.Close()
+
+	node, err := g.UpsertNode("n:Agent:alice", "Agent", Properties{"name": "alice"})
+	require.NoError(t, err)
+	assert.Equal(t, NodeID("n:Agent:alice"), node.ID)
+	assert.Equal(t, "Agent", node.Label)
+	assert.Equal(t, "alice", node.Properties["name"])
+}
+
+func TestUpsertNodeMerge(t *testing.T) {
+	g := New(newMemStorage())
+	defer g.Close()
+
+	_, err := g.UpsertNode("n:Agent:alice", "Agent", Properties{"name": "alice"})
+	require.NoError(t, err)
+
+	node, err := g.UpsertNode("n:Agent:alice", "Agent", Properties{"role": "leader"})
+	require.NoError(t, err)
+	assert.Equal(t, "alice", node.Properties["name"], "existing property preserved")
+	assert.Equal(t, "leader", node.Properties["role"], "new property added")
+}
+
+func TestUpsertNodeIdempotent(t *testing.T) {
+	g := New(newMemStorage())
+	defer g.Close()
+
+	n1, err := g.UpsertNode("n:Agent:alice", "Agent", Properties{"name": "alice"})
+	require.NoError(t, err)
+
+	n2, err := g.UpsertNode("n:Agent:alice", "Agent", Properties{"name": "alice"})
+	require.NoError(t, err)
+	assert.Equal(t, n1.ID, n2.ID)
+	assert.Equal(t, n1.Properties["name"], n2.Properties["name"])
+}
+
+func TestUpsertNodeNilProps(t *testing.T) {
+	g := New(newMemStorage())
+	defer g.Close()
+
+	node, err := g.UpsertNode("n:Agent:bob", "Agent", nil)
+	require.NoError(t, err)
+	assert.NotNil(t, node.Properties)
+}
+
+func TestUpsertEdgeCreate(t *testing.T) {
+	g := New(newMemStorage())
+	defer g.Close()
+
+	edge, err := g.UpsertEdge("e:KNOWS:abc", "KNOWS", "n:Agent:alice", "n:Agent:bob", Properties{"since": "2026"})
+	require.NoError(t, err)
+	assert.Equal(t, EdgeID("e:KNOWS:abc"), edge.ID)
+	assert.Equal(t, "KNOWS", edge.Label)
+	assert.Equal(t, NodeID("n:Agent:alice"), edge.FromID)
+	assert.Equal(t, NodeID("n:Agent:bob"), edge.ToID)
+}
+
+func TestUpsertEdgeNoEndpointCheck(t *testing.T) {
+	g := New(newMemStorage())
+	defer g.Close()
+
+	// Should succeed even though endpoints don't exist
+	_, err := g.UpsertEdge("e:KNOWS:abc", "KNOWS", "n:Agent:nonexistent1", "n:Agent:nonexistent2", nil)
+	assert.NoError(t, err)
+}
+
+func TestUpsertEdgeMerge(t *testing.T) {
+	g := New(newMemStorage())
+	defer g.Close()
+
+	_, err := g.UpsertEdge("e:KNOWS:abc", "KNOWS", "n:Agent:alice", "n:Agent:bob", Properties{"since": "2026"})
+	require.NoError(t, err)
+
+	edge, err := g.UpsertEdge("e:KNOWS:abc", "KNOWS", "n:Agent:alice", "n:Agent:bob", Properties{"weight": 5})
+	require.NoError(t, err)
+	assert.Equal(t, "2026", edge.Properties["since"], "existing property preserved")
+	assert.Equal(t, 5, edge.Properties["weight"], "new property added")
+}
+
+func TestUpsertEdgeIdempotent(t *testing.T) {
+	g := New(newMemStorage())
+	defer g.Close()
+
+	e1, err := g.UpsertEdge("e:KNOWS:abc", "KNOWS", "n:Agent:alice", "n:Agent:bob", nil)
+	require.NoError(t, err)
+
+	e2, err := g.UpsertEdge("e:KNOWS:abc", "KNOWS", "n:Agent:alice", "n:Agent:bob", nil)
+	require.NoError(t, err)
+	assert.Equal(t, e1.ID, e2.ID)
+}
