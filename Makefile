@@ -215,12 +215,13 @@ commit-check: fmt vet test-race cover-check ## Pre-commit quality gate (fmt, vet
 	@echo "commit-check passed — safe to push."
 
 .PHONY: commit-and-push
-commit-and-push: commit-check ## Run quality gates, commit all changes, and push
+commit-and-push: commit-check ## Run quality gates, auto-generate commit message, commit, and push
 	@if [ -z "$$(git status --porcelain)" ]; then \
 		echo "Nothing to commit."; \
 	else \
 		git add -A && \
-		read -p "Commit message: " MSG && \
+		MSG=$$(bash hack/commit-msg.sh) && \
+		echo "Commit message:" && echo "  $$MSG" && echo "" && \
 		git commit -m "$$MSG" && \
 		git push; \
 	fi
