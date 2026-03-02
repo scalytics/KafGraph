@@ -1,0 +1,44 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.25"
+
+      - name: Check formatting
+        run: make fmt-check
+
+      - name: Run vet
+        run: make vet
+
+      - name: Install golangci-lint
+        uses: golangci/golangci-lint-action@v6
+        with:
+          version: latest
+          args: --config .golangci.yml ./...
+
+      - name: Run tests with race detector
+        run: make test-race
+
+      - name: Check coverage
+        run: make cover-check
+
+      - name: Check license headers
+        run: bash hack/license-header.sh
+
+      - name: Check docs sync
+        run: make docs-sync-check

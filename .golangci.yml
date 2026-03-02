@@ -1,0 +1,46 @@
+version: "2"
+
+run:
+  timeout: 5m
+  modules-download-mode: readonly
+
+formatters:
+  enable:
+    - gofmt
+    - goimports
+  settings:
+    goimports:
+      local-prefixes: github.com/scalytics/kafgraph
+
+linters:
+  enable:
+    - govet
+    - errcheck
+    - staticcheck
+    - unused
+    - ineffassign
+    - misspell
+    - revive
+    - gosec
+  exclusions:
+    rules:
+      - path: _test\.go
+        linters:
+          - errcheck
+          - gosec
+  settings:
+    govet:
+      shadow: true
+    revive:
+      rules:
+        - name: exported
+          arguments:
+            - disableStutteringCheck
+    misspell:
+      locale: US
+    gosec:
+      excludes:
+        - G117
+
+issues:
+  max-same-issues: 0

@@ -1,0 +1,14 @@
+# KafGraph Code Owners
+# Require review on critical paths.
+
+# Specifications and requirements
+/SPEC/ @kamir
+
+# Internal implementation
+/internal/ @kamir
+
+# CI/CD configuration
+/.github/ @kamir
+
+# Docker deployment
+/deploy/ @kamir

@@ -1,0 +1,33 @@
+title: KafGraph
+description: The distributed shared brain of collaborating agents
+remote_theme: just-the-docs/just-the-docs
+
+url: https://scalytics.github.io/kafgraph
+
+plugins:
+  - jekyll-remote-theme
+  - jekyll-seo-tag
+  - jekyll-include-cache
+
+markdown: kramdown
+kramdown:
+  input: GFM
+
+search_enabled: true
+heading_anchors: true
+back_to_top: true
+back_to_top_text: "Back to top"
+
+aux_links:
+  "KafGraph on GitHub":
+    - "https://github.com/scalytics/kafgraph"
+
+aux_links_new_tab: true
+
+footer_content: >-
+  Copyright &copy; 2026 Scalytics, Inc. and Mirko K&auml;mpf.
+  Licensed under the Apache License 2.0.
+
+exclude:
+  - Gemfile.lock
+  - logo-drafts.md
