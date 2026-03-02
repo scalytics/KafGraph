@@ -5,7 +5,7 @@ go 1.25
 require (
 	github.com/dgraph-io/badger/v4 v4.5.1
 	github.com/spf13/viper v1.20.0
-	github.com/stretchr/testify v1.10.0
+	github.com/stretchr/testify v1.11.1
 )
 
 require (
