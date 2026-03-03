@@ -6,6 +6,7 @@
 *.dylib
 bin/
 dist/
+kafgraph
 
 # Test binary, built with `go test -c`
 *.test
@@ -26,12 +27,15 @@ go.work.sum
 
 # env file
 .env
+.env.*
 
 # Build artifacts
 .build/
 
 # Data directory (local BadgerDB)
 data/
+*.db
+bleve.idx/
 
 # Jekyll docs build
 docs/_site/
@@ -49,3 +53,8 @@ docs/Gemfile.lock
 # OS
 .DS_Store
 Thumbs.db
+
+# Debug / profiling
+*.pprof
+*.prof
+*.trace
