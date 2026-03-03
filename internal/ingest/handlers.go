@@ -328,6 +328,81 @@ func HandleRoster(_ context.Context, g *graph.Graph, env *GroupEnvelope, _ Sourc
 	return nil
 }
 
+// HandleHumanFeedback processes inbound human feedback on a reflection cycle.
+// It creates a HumanFeedback node, links it to the cycle, updates the cycle's
+// humanFeedbackStatus to RECEIVED, and applies score overrides to linked signals.
+func HandleHumanFeedback(_ context.Context, g *graph.Graph, env *GroupEnvelope, src SourceOffset) error {
+	var p HumanFeedbackPayload
+	if err := json.Unmarshal(env.Payload, &p); err != nil {
+		return fmt.Errorf("handle human_feedback: %w", err)
+	}
+
+	if p.CycleID == "" {
+		return fmt.Errorf("handle human_feedback: missing CycleID")
+	}
+
+	// 1. Create HumanFeedback node
+	fbNodeID := HumanFeedbackNodeID(src)
+	if _, err := g.UpsertNode(fbNodeID, "HumanFeedback", graph.Properties{
+		"cycleId":           p.CycleID,
+		"feedbackType":      p.FeedbackType,
+		"comment":           p.Comment,
+		"impact":            p.Impact,
+		"relevance":         p.Relevance,
+		"valueContribution": p.ValueContribution,
+		"reviewerID":        p.ReviewerID,
+		"senderID":          env.SenderID,
+	}); err != nil {
+		return fmt.Errorf("handle human_feedback: upsert feedback node: %w", err)
+	}
+
+	// 2. Link cycle → feedback
+	cycleNodeID := graph.NodeID(p.CycleID)
+	edgeID := DeterministicEdgeID("HAS_FEEDBACK", cycleNodeID, fbNodeID)
+	if _, err := g.UpsertEdge(edgeID, "HAS_FEEDBACK", cycleNodeID, fbNodeID, nil); err != nil {
+		return fmt.Errorf("handle human_feedback: upsert feedback edge: %w", err)
+	}
+
+	// 3. Update cycle status to RECEIVED
+	if _, err := g.UpsertNode(cycleNodeID, "ReflectionCycle", graph.Properties{
+		"humanFeedbackStatus": "RECEIVED",
+	}); err != nil {
+		return fmt.Errorf("handle human_feedback: update cycle status: %w", err)
+	}
+
+	// 4. Apply score overrides to linked LearningSignal edges
+	applyScoreOverrides(g, cycleNodeID, p.Impact, p.Relevance, p.ValueContribution)
+
+	return nil
+}
+
+// applyScoreOverrides updates LINKS_TO edge properties for signals linked to a cycle.
+func applyScoreOverrides(g *graph.Graph, cycleID graph.NodeID, impact, relevance, valueContribution float64) {
+	edges, err := g.Neighbors(cycleID)
+	if err != nil {
+		return
+	}
+	for _, edge := range edges {
+		if edge.Label != "LINKS_TO" || edge.ToID != cycleID {
+			continue
+		}
+		// Only update non-zero overrides
+		props := graph.Properties{}
+		if impact != 0 {
+			props["impact"] = impact
+		}
+		if relevance != 0 {
+			props["relevance"] = relevance
+		}
+		if valueContribution != 0 {
+			props["valueContribution"] = valueContribution
+		}
+		if len(props) > 0 {
+			g.UpsertEdge(edge.ID, edge.Label, edge.FromID, edge.ToID, props) //nolint:errcheck,gosec // best-effort
+		}
+	}
+}
+
 // HandleOrchestrator creates DELEGATES_TO and REPORTS_TO edges between agents.
 func HandleOrchestrator(_ context.Context, g *graph.Graph, env *GroupEnvelope, _ SourceOffset) error {
 	var p OrchestratorPayload

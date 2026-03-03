@@ -37,6 +37,7 @@ const (
 	TypeAudit         EnvelopeType = "audit"
 	TypeRoster        EnvelopeType = "roster"
 	TypeOrchestrator  EnvelopeType = "orchestrator"
+	TypeHumanFeedback EnvelopeType = "human_feedback"
 )
 
 // GroupEnvelope is the wire format for KafClaw agent messages.
@@ -134,4 +135,15 @@ type OrchestratorPayload struct {
 	FromAgent string `json:"FromAgent"`
 	ToAgent   string `json:"ToAgent"`
 	TaskID    string `json:"TaskID"`
+}
+
+// HumanFeedbackPayload contains human feedback on a reflection cycle.
+type HumanFeedbackPayload struct {
+	CycleID           string  `json:"CycleID"`
+	FeedbackType      string  `json:"FeedbackType"` // "positive", "negative", "neutral"
+	Comment           string  `json:"Comment"`
+	Impact            float64 `json:"Impact"`
+	Relevance         float64 `json:"Relevance"`
+	ValueContribution float64 `json:"ValueContribution"`
+	ReviewerID        string  `json:"ReviewerID"`
 }

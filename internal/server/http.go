@@ -22,8 +22,10 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/scalytics/kafgraph/internal/brain"
 	"github.com/scalytics/kafgraph/internal/config"
 	"github.com/scalytics/kafgraph/internal/graph"
+	"github.com/scalytics/kafgraph/internal/query"
 )
 
 // HTTPServer serves the KafGraph REST API and health endpoints.
@@ -32,8 +34,37 @@ type HTTPServer struct {
 	graph  *graph.Graph
 }
 
+// ServerOption configures optional HTTPServer dependencies.
+type ServerOption func(*serverOpts)
+
+type serverOpts struct {
+	exec  *query.Executor
+	brain *brain.Service
+}
+
+// WithExecutor sets the query executor.
+func WithExecutor(exec *query.Executor) ServerOption {
+	return func(o *serverOpts) { o.exec = exec }
+}
+
+// WithBrain sets the brain tool service.
+func WithBrain(b *brain.Service) ServerOption {
+	return func(o *serverOpts) { o.brain = b }
+}
+
 // NewHTTPServer creates an HTTPServer with all routes registered.
-func NewHTTPServer(addr string, g *graph.Graph) *HTTPServer {
+// Accepts optional *query.Executor for backward compatibility, plus ServerOption.
+func NewHTTPServer(addr string, g *graph.Graph, args ...any) *HTTPServer {
+	opts := &serverOpts{}
+	for _, arg := range args {
+		switch v := arg.(type) {
+		case *query.Executor:
+			opts.exec = v
+		case ServerOption:
+			v(opts)
+		}
+	}
+
 	mux := http.NewServeMux()
 	s := &HTTPServer{
 		server: &http.Server{
@@ -51,8 +82,8 @@ func NewHTTPServer(addr string, g *graph.Graph) *HTTPServer {
 	mux.HandleFunc("GET /readyz", s.handleReadyz)
 	mux.HandleFunc("GET /version", s.handleVersion)
 
-	// Register CRUD routes
-	registerRoutes(mux, g)
+	// Register CRUD + query + brain tool routes
+	registerRoutes(mux, g, opts.exec, opts.brain)
 
 	return s
 }

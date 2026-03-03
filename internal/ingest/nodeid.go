@@ -52,6 +52,11 @@ func AuditEventNodeID(src SourceOffset) graph.NodeID {
 	return graph.NodeID(fmt.Sprintf("n:AuditEvent:%s:%d:%d", src.Topic, src.Partition, src.Offset))
 }
 
+// HumanFeedbackNodeID returns a deterministic node ID for a human feedback entry.
+func HumanFeedbackNodeID(src SourceOffset) graph.NodeID {
+	return graph.NodeID(fmt.Sprintf("n:HumanFeedback:%s:%d:%d", src.Topic, src.Partition, src.Offset))
+}
+
 // DeterministicEdgeID returns a deterministic edge ID from label and endpoints.
 func DeterministicEdgeID(label string, from, to graph.NodeID) graph.EdgeID {
 	h := sha256.Sum256(fmt.Appendf(nil, "%s:%s", from, to))

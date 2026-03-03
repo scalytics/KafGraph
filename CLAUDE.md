@@ -138,7 +138,7 @@ Both block merge on findings. Run `make sec` locally to check both.
 - **SPEC/solution-design.md** — technology selection, layer architecture, data model
 - **SPEC/about-agent-brains.md** — agent brain concept and design rationale
 - **SPEC/kafclaw-topic-reference.md** — KafClaw topic hierarchy and wire format
-- **SPEC/PLAN.md** — phase tracker (0: Foundation → 7: Hardening)
+- **SPEC/PLAN.md** — phase tracker (0: Foundation → 8: Hardening)
 
 ## Key Packages
 
@@ -148,6 +148,7 @@ Both block merge on findings. Run `make sec` locally to check both.
 | `internal/config` | Viper-based configuration loader |
 | `internal/graph` | Core graph API (CRUD nodes/edges, property graph model) |
 | `internal/storage` | Storage engines (BadgerDB default) |
+| `internal/reflect` | Reflection Engine (scheduler, cycle runner, scorer, feedback checker) |
 | `internal/server` | Bolt v4 protocol, HTTP API, Brain Tool API |
 
 ## Reference Repos

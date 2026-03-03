@@ -23,6 +23,8 @@ import (
 	"io"
 	"log"
 	"net"
+
+	"github.com/scalytics/kafgraph/internal/query"
 )
 
 const (
@@ -37,15 +39,17 @@ const (
 type BoltServer struct {
 	listener net.Listener
 	addr     string
+	exec     *query.Executor
 }
 
 // NewBoltServer creates a new BoltServer listening on the given address.
-func NewBoltServer(addr string) (*BoltServer, error) {
+// The executor is optional; pass nil for handshake-only mode.
+func NewBoltServer(addr string, exec *query.Executor) (*BoltServer, error) {
 	ln, err := net.Listen("tcp", addr)
 	if err != nil {
 		return nil, fmt.Errorf("bolt listen: %w", err)
 	}
-	return &BoltServer{listener: ln, addr: addr}, nil
+	return &BoltServer{listener: ln, addr: addr, exec: exec}, nil
 }
 
 // Addr returns the address the server is listening on.
@@ -118,7 +122,105 @@ func (s *BoltServer) handleConn(conn net.Conn) {
 		return
 	}
 	log.Printf("bolt: negotiated version %d.%d", version>>8, version&0xFF)
-	// Future: message framing loop (Phase 2+)
+
+	if s.exec == nil {
+		return // handshake-only mode
+	}
+
+	// Full message loop
+	s.messageLoop(conn)
+}
+
+func (s *BoltServer) messageLoop(conn net.Conn) {
+	for {
+		msg, err := DecodeMessage(conn)
+		if err != nil {
+			return // connection closed or error
+		}
+
+		switch msg.Type {
+		case MsgHELLO:
+			// Accept any auth in v1
+			meta := map[string]any{"server": "KafGraph/1.0", "connection_id": "bolt-1"}
+			if err := SendMessage(conn, MsgSUCCESS, meta); err != nil {
+				return
+			}
+
+		case MsgRUN:
+			if len(msg.Fields) < 1 {
+				sendFailure(conn, "missing query")
+				continue
+			}
+			cypher, ok := msg.Fields[0].(string)
+			if !ok {
+				sendFailure(conn, "query must be string")
+				continue
+			}
+			params := extractParams(msg)
+			rs, err := s.exec.Execute(cypher, params)
+			if err != nil {
+				sendFailure(conn, err.Error())
+				continue
+			}
+			// Send SUCCESS with column metadata
+			meta := map[string]any{"fields": toAnySlice(rs.Columns)}
+			if err := SendMessage(conn, MsgSUCCESS, meta); err != nil {
+				return
+			}
+			// Wait for PULL, then stream records
+			pullMsg, err := DecodeMessage(conn)
+			if err != nil {
+				return
+			}
+			if pullMsg.Type == MsgPULL {
+				for _, row := range rs.Rows {
+					record := make([]any, len(rs.Columns))
+					for i, col := range rs.Columns {
+						record[i] = row[col]
+					}
+					if err := SendMessage(conn, MsgRECORD, record); err != nil {
+						return
+					}
+				}
+				if err := SendMessage(conn, MsgSUCCESS, map[string]any{}); err != nil {
+					return
+				}
+			}
+
+		case MsgRESET:
+			if err := SendMessage(conn, MsgSUCCESS, map[string]any{}); err != nil {
+				return
+			}
+
+		default:
+			sendFailure(conn, fmt.Sprintf("unknown message type: 0x%02X", msg.Type))
+		}
+	}
+}
+
+func sendFailure(conn net.Conn, message string) {
+	_ = SendMessage(conn, MsgFAILURE, map[string]any{
+		"code":    "Neo.ClientError.Statement.SyntaxError",
+		"message": message,
+	})
+}
+
+func extractParams(msg *BoltMessage) map[string]any {
+	if len(msg.Fields) < 2 {
+		return nil
+	}
+	if m, ok := msg.Fields[1].(map[string]any); ok {
+		return m
+	}
+	return nil
+}
+
+func toAnySlice(ss []string) []any {
+	result := make([]any, len(ss))
+	for i, s := range ss {
+		result[i] = s
+	}
+	return result
 }
 
 // Close stops the BoltServer.

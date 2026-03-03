@@ -40,9 +40,10 @@ type Config struct {
 	LogLevel  string `mapstructure:"log_level"`
 	LogFormat string `mapstructure:"log_format"`
 
-	Kafka  KafkaConfig  `mapstructure:"kafka"`
-	S3     S3Config     `mapstructure:"s3"`
-	Ingest IngestConfig `mapstructure:"ingest"`
+	Kafka   KafkaConfig   `mapstructure:"kafka"`
+	S3      S3Config      `mapstructure:"s3"`
+	Ingest  IngestConfig  `mapstructure:"ingest"`
+	Reflect ReflectConfig `mapstructure:"reflect"`
 }
 
 // IngestConfig holds settings for the Kafka ingestion processor.
@@ -59,6 +60,20 @@ type KafkaConfig struct {
 	Brokers     string `mapstructure:"brokers"`
 	GroupID     string `mapstructure:"group_id"`
 	TopicPrefix string `mapstructure:"topic_prefix"`
+}
+
+// ReflectConfig holds settings for the reflection engine scheduler.
+type ReflectConfig struct {
+	Enabled              bool   `mapstructure:"enabled"`
+	CheckInterval        string `mapstructure:"check_interval"`
+	DailyTime            string `mapstructure:"daily_time"`
+	WeeklyDay            string `mapstructure:"weekly_day"`
+	WeeklyTime           string `mapstructure:"weekly_time"`
+	MonthlyDay           int    `mapstructure:"monthly_day"`
+	MonthlyTime          string `mapstructure:"monthly_time"`
+	FeedbackGracePeriod  string `mapstructure:"feedback_grace_period"`
+	FeedbackRequestTopic string `mapstructure:"feedback_request_topic"`
+	FeedbackTopN         int    `mapstructure:"feedback_top_n"`
 }
 
 // S3Config holds S3/MinIO connection settings.
@@ -93,6 +108,16 @@ func Load() (*Config, error) {
 	v.SetDefault("ingest.batch_size", 1000)
 	v.SetDefault("ingest.namespace", "kafgraph-ingest")
 	v.SetDefault("ingest.group_name", "")
+	v.SetDefault("reflect.enabled", false)
+	v.SetDefault("reflect.check_interval", "1m")
+	v.SetDefault("reflect.daily_time", "02:00")
+	v.SetDefault("reflect.weekly_day", "Monday")
+	v.SetDefault("reflect.weekly_time", "03:00")
+	v.SetDefault("reflect.monthly_day", 1)
+	v.SetDefault("reflect.monthly_time", "04:00")
+	v.SetDefault("reflect.feedback_grace_period", "24h")
+	v.SetDefault("reflect.feedback_request_topic", "kafgraph.feedback.requests")
+	v.SetDefault("reflect.feedback_top_n", 5)
 
 	// Config file
 	v.SetConfigName("kafgraph")
