@@ -41,7 +41,9 @@ make test
 make dev-run
 ```
 
-See [Getting Started](getting-started.md) for detailed setup instructions.
+See [Getting Started](getting-started.md) for detailed setup instructions, or
+run `make demo-seed` to instantly explore a pre-populated graph with reflection
+data. See [Demo Data](demo-data.md) for the full scenario.
 
 ## Architecture
 

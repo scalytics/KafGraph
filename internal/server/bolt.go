@@ -24,7 +24,7 @@ import (
 	"log"
 	"net"
 
-	"github.com/scalytics/kafgraph/internal/query"
+	"github.com/scalytics/kafgraph/internal/cluster"
 )
 
 const (
@@ -39,12 +39,12 @@ const (
 type BoltServer struct {
 	listener net.Listener
 	addr     string
-	exec     *query.Executor
+	exec     cluster.QueryExecutor
 }
 
 // NewBoltServer creates a new BoltServer listening on the given address.
 // The executor is optional; pass nil for handshake-only mode.
-func NewBoltServer(addr string, exec *query.Executor) (*BoltServer, error) {
+func NewBoltServer(addr string, exec cluster.QueryExecutor) (*BoltServer, error) {
 	ln, err := net.Listen("tcp", addr)
 	if err != nil {
 		return nil, fmt.Errorf("bolt listen: %w", err)

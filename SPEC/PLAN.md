@@ -13,8 +13,9 @@
 | 4 | Agent Brain | **Complete** | Brain Tool API (7 tools), HTTP tool execution endpoint, full-text search integration |
 | 5 | Reflection | **Complete** | Reflection scheduler, historic iterator, daily/weekly/monthly cycles, scoring |
 | 6 | Feedback | **Complete** | Human feedback loop, impact tracking, feedback-request events |
-| 7 | Distribution | Planned | Multi-node cluster, gossip, cross-partition queries, partition strategies |
-| 8 | Hardening | Planned | TLS, encryption at rest, OpenTelemetry, Helm chart, load tests |
+| 7 | Distribution | **Complete** | Multi-node cluster, gossip, cross-partition queries, partition strategies |
+| 8 | Management UI | **Complete** | Embedded management UI, Management API, graph browser, reflection dashboard |
+| 9 | Hardening | Planned | TLS, encryption at rest, OpenTelemetry, Helm chart, load tests |
 
 ## Phase 0 — Foundation (Complete)
 
@@ -194,6 +195,74 @@ Phase 6 begins after Phase 5 verification passes.
 
 ### Next Phase
 Phase 7 begins after Phase 6 verification passes.
+
+## Phase 7 — Distribution (Complete)
+
+### Goals
+- Multi-node cluster with gossip-based membership
+- Agent-ID-based graph partitioning (FNV-1a hash)
+- Internal RPC for cross-node query forwarding
+- Query router with fan-out and result merging
+- Backward-compatible QueryExecutor interface
+
+### Deliverables
+- [x] Core types: NodeInfo, PartitionStrategy, QueryExecutor interface (cluster/types.go)
+- [x] AgentIDPartitioner with FNV-1a hashing (cluster/partition.go)
+- [x] PartitionMap with deterministic round-robin rebalancing
+- [x] Memberlist wrapper with gossip-based discovery (cluster/membership.go)
+- [x] Node metadata encoding/decoding (RPC, Bolt, HTTP ports)
+- [x] Async event processing to avoid memberlist lock deadlocks
+- [x] Idempotent Leave() for safe multi-call cleanup
+- [x] Length-prefixed JSON over TCP RPC (cluster/rpc.go)
+- [x] RPCServer and RPCClient with concurrent query support
+- [x] QueryRouter with fan-out to all shards and result merging (cluster/router.go)
+- [x] Partial failure tolerance (returns available results)
+- [x] QueryExecutor interface in server/bolt.go, server/http.go, server/routes.go
+- [x] ClusterConfig struct with defaults in config.go
+- [x] Main wiring gated by cluster.enabled flag
+- [x] 14 partition tests, 8 membership tests, 8 RPC tests, 10 router tests
+- [x] 3 E2E cluster tests (3-node join, cross-node query, node leave)
+- [x] Distribution architecture documentation (docs/distribution.md)
+
+### Next Phase
+Phase 8 begins after Phase 7 verification passes.
+
+## Phase 8 — Management UI (Complete)
+
+### Goals
+- Embedded management UI served on the HTTP port (`:7474`)
+- Management API at `/api/v2/mgmt/` with 10 endpoints
+- Interactive graph browser with Cytoscape.js
+- Data visualization with Apache ECharts
+- Configuration viewer with secret redaction
+- Reflection dashboard with cycle filtering and score charts
+- Cluster topology view (read-only)
+- Air-gapped deployment via Go `embed.FS`
+
+### Deliverables
+- [x] Web embed package (`web/embed.go`) with `//go:embed all:static`
+- [x] SPA shell with hash-based routing (`web/static/index.html`, `js/app.js`)
+- [x] Custom design system (CSS tokens, layout, components, graph browser, charts)
+- [x] Sidebar navigation with live status (nodes, uptime, version)
+- [x] Dashboard view with metric cards, activity timeline, node distribution chart
+- [x] Graph Browser with Cytoscape.js (search, label filter, depth selection, layout options)
+- [x] Node detail panel with property inspection
+- [x] Data Stats view with ECharts bar charts and storage metrics
+- [x] Configuration view (tabbed: node config + cluster) with S3 secret redaction
+- [x] Reflection view with summary cards, feedback pipeline pie chart, filterable cycle table
+- [x] Vendored Cytoscape.js and Apache ECharts (air-gapped compatible)
+- [x] Management API: 10 endpoints (info, storage, stats, explore, search, config, cluster, reflect/summary, reflect/cycles, activity)
+- [x] CORS middleware for cross-origin requests
+- [x] Static file serving via `http.FS` with API route precedence
+- [x] New ServerOptions: `WithConfig`, `WithMembership`, `WithPartitionMap`
+- [x] Main wiring: cfg, membership, partitionMap passed to HTTPServer
+- [x] 22 management unit tests
+- [x] 5 E2E management tests
+- [x] Management UI documentation (`docs/management-ui.md`)
+- [x] All existing tests continue to pass
+
+### Next Phase
+Phase 9 (Hardening) begins after Phase 8 verification passes.
 
 ---
 

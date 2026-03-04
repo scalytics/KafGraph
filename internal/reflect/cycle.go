@@ -29,6 +29,7 @@ type CycleRunner struct {
 	graph    *graph.Graph
 	iterator *HistoricIterator
 	scorer   *Scorer
+	analyzer Analyzer
 	nowFunc  func() time.Time
 }
 
@@ -38,6 +39,19 @@ func NewCycleRunner(g *graph.Graph) *CycleRunner {
 		graph:    g,
 		iterator: NewHistoricIterator(g),
 		scorer:   NewScorer(g),
+		nowFunc:  time.Now,
+	}
+}
+
+// NewCycleRunnerWithAnalyzer creates a cycle runner that uses an Analyzer
+// for TF-IDF keyword extraction, entity recognition, auto-tagging,
+// summary synthesis, and pattern detection.
+func NewCycleRunnerWithAnalyzer(g *graph.Graph, analyzer Analyzer) *CycleRunner {
+	return &CycleRunner{
+		graph:    g,
+		iterator: NewHistoricIterator(g),
+		scorer:   NewScorerWithAnalyzer(g, analyzer),
+		analyzer: analyzer,
 		nowFunc:  time.Now,
 	}
 }
@@ -86,6 +100,21 @@ func (cr *CycleRunner) Execute(ctx context.Context, req CycleRequest) (*CycleRes
 		}
 	}
 
+	// 4b. Build TF-IDF corpus from all window nodes (when analyzer is set).
+	if cr.analyzer != nil {
+		corpus := NewTFIDFCorpus()
+		for _, n := range nodes {
+			text := extractText(n)
+			if text != "" {
+				corpus.AddDocument(text)
+			}
+		}
+		if ha, ok := cr.analyzer.(*HeuristicAnalyzer); ok {
+			ha.RefreshKnowledge()
+			ha.SetCorpus(corpus)
+		}
+	}
+
 	// 5. Score each node and create LearningSignal nodes
 	var signals []ScoredSignal
 	var summaryParts []string
@@ -102,7 +131,7 @@ func (cr *CycleRunner) Execute(ctx context.Context, req CycleRequest) (*CycleRes
 
 		// Create deterministic LearningSignal node
 		sigID := SignalNodeID(req.Type, req.AgentID, req.WindowStart, n.ID)
-		cr.graph.UpsertNode(sigID, "LearningSignal", graph.Properties{ //nolint:errcheck,gosec // best-effort
+		props := graph.Properties{
 			"sourceNodeId":      string(n.ID),
 			"impact":            scored.Impact,
 			"relevance":         scored.Relevance,
@@ -110,7 +139,28 @@ func (cr *CycleRunner) Execute(ctx context.Context, req CycleRequest) (*CycleRes
 			"summary":           scored.Summary,
 			"cycleType":         string(req.Type),
 			"agentId":           req.AgentID,
-		})
+		}
+
+		// Store enriched analysis data when available.
+		if len(scored.Tags) > 0 {
+			props["tags"] = strings.Join(scored.Tags, ",")
+		}
+		if len(scored.Keywords) > 0 {
+			kwTerms := make([]string, len(scored.Keywords))
+			for i, k := range scored.Keywords {
+				kwTerms[i] = k.Term
+			}
+			props["keywords"] = strings.Join(kwTerms, ",")
+		}
+		if len(scored.Entities) > 0 {
+			eNames := make([]string, len(scored.Entities))
+			for i, e := range scored.Entities {
+				eNames[i] = e.Name
+			}
+			props["entities"] = strings.Join(eNames, ",")
+		}
+
+		cr.graph.UpsertNode(sigID, "LearningSignal", props) //nolint:errcheck,gosec // best-effort
 
 		// Link signal to cycle
 		linkID := ScoreEdgeID("LINKS_TO", sigID, cycleID)
@@ -134,10 +184,15 @@ func (cr *CycleRunner) Execute(ctx context.Context, req CycleRequest) (*CycleRes
 		"completedAt": cr.nowFunc().Format(time.RFC3339),
 	})
 
-	summary := "No activity in window."
-	if len(summaryParts) > 0 {
+	// 8. Build summary.
+	var summary string
+	if cr.analyzer != nil && len(signals) > 0 {
+		summary = cr.analyzer.SummarizeSignals(signals)
+	} else if len(summaryParts) > 0 {
 		summary = fmt.Sprintf("Found %d signals: %s",
 			len(summaryParts), strings.Join(summaryParts, "; "))
+	} else {
+		summary = "No activity in window."
 	}
 
 	return &CycleResult{

@@ -127,6 +127,8 @@ type AuditPayload struct {
 type RosterPayload struct {
 	AgentID string   `json:"AgentID"`
 	Skills  []string `json:"Skills"`
+	Version int      `json:"Version,omitempty"` // roster version counter (REQ-009)
+	Action  string   `json:"Action,omitempty"`  // "full", "add", "remove" (REQ-009)
 }
 
 // OrchestratorPayload contains delegation and reporting events.

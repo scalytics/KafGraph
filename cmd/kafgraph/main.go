@@ -25,6 +25,8 @@ import (
 	"time"
 
 	"github.com/scalytics/kafgraph/internal/brain"
+	"github.com/scalytics/kafgraph/internal/cluster"
+	"github.com/scalytics/kafgraph/internal/compliance"
 	"github.com/scalytics/kafgraph/internal/config"
 	"github.com/scalytics/kafgraph/internal/graph"
 	"github.com/scalytics/kafgraph/internal/ingest"
@@ -82,24 +84,94 @@ func run(ctx context.Context) error {
 	// 5. Create brain tool service
 	bs := brain.NewService(g, ft, vs)
 
-	// 5b. Create reflection runner and inject into brain service
-	cycleRunner := reflectpkg.NewCycleRunner(g)
+	// 5b. Create analyzer-enabled reflection runner and inject into brain service
+	analyzer := reflectpkg.NewHeuristicAnalyzer(g)
+	cycleRunner := reflectpkg.NewCycleRunnerWithAnalyzer(g, analyzer)
 	adapter := reflectpkg.NewBrainAdapter(cycleRunner)
 	bs.SetReflectionRunner(adapter)
+	bs.SetEnricher(analyzer)
 
-	// 6. Create servers
+	// 6. Cluster distribution (Phase 7)
+	var qe cluster.QueryExecutor = exec // default: local executor
+	var mem *cluster.Membership
+	var pm *cluster.PartitionMap
+
+	if cfg.Cluster.Enabled {
+		strategy := &cluster.AgentIDPartitioner{}
+		pm = cluster.NewPartitionMap(cfg.Cluster.NumPartitions, strategy)
+
+		var merr error
+		mem, merr = cluster.NewMembership(cluster.MembershipConfig{
+			NodeName: cfg.Cluster.NodeName,
+			BindAddr: cfg.Cluster.BindAddr,
+			BindPort: cfg.Cluster.GossipPort,
+			Seeds:    cfg.Cluster.Seeds,
+			RPCPort:  cfg.Cluster.RPCPort,
+			BoltPort: cfg.BoltPort,
+			HTTPPort: cfg.Port,
+		}, pm)
+		if merr != nil {
+			return fmt.Errorf("create cluster membership: %w", merr)
+		}
+		defer func() { _ = mem.Leave() }()
+
+		if len(cfg.Cluster.Seeds) > 0 {
+			if err := mem.Join(cfg.Cluster.Seeds); err != nil {
+				log.Printf("warning: cluster join failed: %v", err)
+			}
+		}
+
+		rpcAddr := fmt.Sprintf("%s:%d", cfg.Host, cfg.Cluster.RPCPort)
+		rpcSrv, err := cluster.NewRPCServer(rpcAddr, exec)
+		if err != nil {
+			return fmt.Errorf("start rpc server: %w", err)
+		}
+		defer func() { _ = rpcSrv.Close() }()
+
+		qe = cluster.NewQueryRouter(exec, pm, mem.Self().Name)
+
+		log.Printf("cluster enabled: node=%s gossip=%s:%d rpc=%s partitions=%d",
+			mem.Self().Name, cfg.Cluster.BindAddr, cfg.Cluster.GossipPort,
+			rpcAddr, cfg.Cluster.NumPartitions)
+
+		// Start RPC server immediately (needed before other servers use the router).
+		go func() { _ = rpcSrv.Serve(ctx) }()
+	}
+
+	// 6b. Create compliance engine
+	var compEngine *compliance.Engine
+	if cfg.Compliance.Enabled {
+		compEngine = compliance.NewEngine(g)
+		compliance.RegisterGDPRRules(compEngine)
+		compliance.RegisterDataFlowRules(compEngine)
+		if err := compEngine.LoadYAMLRules(cfg.Compliance.RulesDir); err != nil {
+			log.Printf("warning: failed to load YAML rules: %v", err)
+		}
+		if err := compEngine.EnsureFrameworkNodes(); err != nil {
+			log.Printf("warning: failed to create framework nodes: %v", err)
+		}
+		log.Printf("compliance engine enabled: %d rules loaded", len(compEngine.Rules()))
+	}
+
+	// 7. Create servers
 	httpAddr := fmt.Sprintf("%s:%d", cfg.Host, cfg.Port)
 	boltAddr := fmt.Sprintf("%s:%d", cfg.Host, cfg.BoltPort)
 
-	httpSrv := server.NewHTTPServer(httpAddr, g, exec, server.WithBrain(bs))
+	httpSrv := server.NewHTTPServer(httpAddr, g, qe,
+		server.WithBrain(bs),
+		server.WithConfig(cfg),
+		server.WithMembership(mem),
+		server.WithPartitionMap(pm),
+		server.WithCompliance(compEngine),
+	)
 
-	boltSrv, err := server.NewBoltServer(boltAddr, exec)
+	boltSrv, err := server.NewBoltServer(boltAddr, qe)
 	if err != nil {
 		return fmt.Errorf("start bolt server: %w", err)
 	}
 
-	// 7. Start servers in goroutines
-	errCh := make(chan error, 4)
+	// 8. Start servers in goroutines
+	errCh := make(chan error, 5)
 	go func() { errCh <- httpSrv.Serve() }()
 	go func() { errCh <- boltSrv.Serve(ctx) }()
 
@@ -155,10 +227,22 @@ func run(ctx context.Context) error {
 			Publisher:     pub,
 			RequestTopic:  cfg.Reflect.FeedbackRequestTopic,
 			TopN:          cfg.Reflect.FeedbackTopN,
+			CycleRunner:   cycleRunner,
 		})
 		go func() { errCh <- sched.Run(ctx) }()
 		log.Printf("reflection scheduler started (check=%s, feedback_topic=%s)",
 			checkInterval, cfg.Reflect.FeedbackRequestTopic)
+	}
+
+	// 7d. Start compliance scheduler (if enabled)
+	if compEngine != nil && cfg.Compliance.AutoScan {
+		scanInterval, err := time.ParseDuration(cfg.Compliance.ScanInterval)
+		if err != nil {
+			return fmt.Errorf("parse compliance scan_interval: %w", err)
+		}
+		compSched := compliance.NewScheduler(compEngine, scanInterval, true)
+		go func() { errCh <- compSched.Run(ctx) }()
+		log.Printf("compliance scheduler started (interval=%s)", scanInterval)
 	}
 
 	// 8. Wait for signal or error

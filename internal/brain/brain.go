@@ -45,12 +45,27 @@ type ReflectCycleResult struct {
 	Summary         string
 }
 
+// Enricher provides auto-tagging for brain_capture. Defined here to avoid
+// importing the reflect package (same pattern as ReflectionRunner).
+type Enricher interface {
+	AutoTag(content string) []string
+}
+
+// Embedder provides vector embeddings for brain_search. When set,
+// Search() queries the vector backend alongside full-text results.
+// For this release the embedder is nil (vector path inactive).
+type Embedder interface {
+	Embed(text string) ([]float32, error)
+}
+
 // Service implements the seven brain tools.
 type Service struct {
 	graph     *graph.Graph
 	fullText  search.FullTextSearcher
 	vector    search.VectorSearcher
 	reflector ReflectionRunner
+	enricher  Enricher
+	embedder  Embedder
 }
 
 // SetReflectionRunner injects a reflection runner for delegation.
@@ -58,6 +73,16 @@ type Service struct {
 // and heuristic scoring. When nil, falls back to existing behavior.
 func (s *Service) SetReflectionRunner(r ReflectionRunner) {
 	s.reflector = r
+}
+
+// SetEnricher injects an auto-tagger for brain_capture.
+func (s *Service) SetEnricher(e Enricher) {
+	s.enricher = e
+}
+
+// SetEmbedder injects a vector embedder for brain_search.
+func (s *Service) SetEmbedder(e Embedder) {
+	s.embedder = e
 }
 
 // NewService creates a brain tool service.
@@ -139,6 +164,46 @@ func (s *Service) Search(in SearchInput) (*SearchOutput, error) {
 		}
 	}
 
+	// Vector search when embedder is available.
+	if s.embedder != nil && s.vector != nil {
+		vec, err := s.embedder.Embed(in.Query)
+		if err == nil && len(vec) > 0 {
+			seen := make(map[string]bool)
+			for _, r := range out.Results {
+				seen[r.NodeID] = true
+			}
+			// Query each label/property pair via vector search.
+			for _, label := range labels {
+				prop := propForLabel[label]
+				vResults, err := s.vector.Search(label, prop, vec, in.Limit)
+				if err != nil {
+					continue
+				}
+				for _, vr := range vResults {
+					if seen[string(vr.NodeID)] {
+						continue
+					}
+					node, err := s.graph.GetNode(vr.NodeID)
+					if err != nil {
+						continue
+					}
+					if in.TimeRange != nil && !inTimeRange(node.CreatedAt, in.TimeRange) {
+						continue
+					}
+					content := fmt.Sprint(node.Properties[prop])
+					out.Results = append(out.Results, SearchResult{
+						NodeID:  string(vr.NodeID),
+						Type:    node.Label,
+						Content: content,
+						Score:   vr.Score,
+						Props:   map[string]any(node.Properties),
+					})
+					seen[string(vr.NodeID)] = true
+				}
+			}
+		}
+	}
+
 	// Sort by score descending
 	sort.Slice(out.Results, func(i, j int) bool {
 		return out.Results[i].Score > out.Results[j].Score
@@ -174,10 +239,11 @@ type RecallContext struct {
 
 // NodeSummary is a compact node representation.
 type NodeSummary struct {
-	NodeID    string `json:"nodeId"`
-	Type      string `json:"type"`
-	Summary   string `json:"summary"`
-	Timestamp string `json:"timestamp"`
+	NodeID    string   `json:"nodeId"`
+	Type      string   `json:"type"`
+	Summary   string   `json:"summary"`
+	Timestamp string   `json:"timestamp"`
+	Tags      []string `json:"tags,omitempty"`
 }
 
 // Recall loads accumulated context for a specific agent.
@@ -261,6 +327,21 @@ func (s *Service) Capture(in CaptureInput) (*CaptureOutput, error) {
 	}
 	if in.Type == "" {
 		in.Type = "observation"
+	}
+
+	// Auto-tag when user provides fewer than 3 tags and enricher is available.
+	if s.enricher != nil && len(in.Tags) < 3 {
+		autoTags := s.enricher.AutoTag(in.Content)
+		seen := make(map[string]bool)
+		for _, t := range in.Tags {
+			seen[t] = true
+		}
+		for _, t := range autoTags {
+			if !seen[t] {
+				in.Tags = append(in.Tags, t)
+				seen[t] = true
+			}
+		}
 	}
 
 	props := graph.Properties{
@@ -412,8 +493,9 @@ func (s *Service) Patterns(in PatternsInput) (*PatternsOutput, error) {
 
 	out := &PatternsOutput{Patterns: []PatternItem{}}
 
-	// Aggregate tags from LearningSignal nodes
-	tagCounts := map[string][]string{} // tag → list of node IDs
+	// Aggregate tags, entities, and keywords from LearningSignal nodes.
+	tagCounts := map[string][]string{}    // tag → list of node IDs
+	entityCounts := map[string][]string{} // entity → list of node IDs
 	signals, err := s.graph.NodesByLabel("LearningSignal")
 	if err != nil {
 		return out, nil
@@ -422,18 +504,30 @@ func (s *Service) Patterns(in PatternsInput) (*PatternsOutput, error) {
 		if in.TimeRange != nil && !inTimeRange(node.CreatedAt, in.TimeRange) {
 			continue
 		}
-		tagsStr, _ := node.Properties["tags"].(string)
-		if tagsStr == "" {
-			continue
+		nodeID := string(node.ID)
+
+		// Parse tags.
+		if tagsStr, _ := node.Properties["tags"].(string); tagsStr != "" {
+			for _, tag := range strings.Split(tagsStr, ",") {
+				tag = strings.TrimSpace(tag)
+				if tag != "" {
+					tagCounts[tag] = append(tagCounts[tag], nodeID)
+				}
+			}
 		}
-		for _, tag := range strings.Split(tagsStr, ",") {
-			tag = strings.TrimSpace(tag)
-			if tag != "" {
-				tagCounts[tag] = append(tagCounts[tag], string(node.ID))
+
+		// Parse entities (stored by enriched CycleRunner).
+		if entStr, _ := node.Properties["entities"].(string); entStr != "" {
+			for _, ent := range strings.Split(entStr, ",") {
+				ent = strings.TrimSpace(ent)
+				if ent != "" {
+					entityCounts[ent] = append(entityCounts[ent], nodeID)
+				}
 			}
 		}
 	}
 
+	// Build patterns from tags.
 	for tag, nodeIDs := range tagCounts {
 		if len(nodeIDs) >= in.MinOccurrences {
 			out.Patterns = append(out.Patterns, PatternItem{
@@ -442,6 +536,21 @@ func (s *Service) Patterns(in PatternsInput) (*PatternsOutput, error) {
 				RelatedNodes: nodeIDs,
 				Trend:        "stable",
 			})
+		}
+	}
+
+	// Build patterns from entity co-occurrence.
+	for entity, nodeIDs := range entityCounts {
+		if len(nodeIDs) >= in.MinOccurrences {
+			// Only add if not already covered by a tag pattern.
+			if _, exists := tagCounts[entity]; !exists {
+				out.Patterns = append(out.Patterns, PatternItem{
+					Theme:        entity,
+					Occurrences:  len(nodeIDs),
+					RelatedNodes: nodeIDs,
+					Trend:        "stable",
+				})
+			}
 		}
 	}
 

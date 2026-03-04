@@ -297,6 +297,9 @@ func HandleAudit(_ context.Context, g *graph.Graph, env *GroupEnvelope, src Sour
 }
 
 // HandleRoster creates Skill nodes from an agent's skill manifest.
+// Supports REQ-009 fields: Version (roster counter) and Action ("full", "add", "remove").
+// When action is "remove", existing HAS_SKILL edges get a removedAt timestamp.
+// Backward compatible: envelopes without Version/Action work as before.
 func HandleRoster(_ context.Context, g *graph.Graph, env *GroupEnvelope, _ SourceOffset) error {
 	var p RosterPayload
 	if err := json.Unmarshal(env.Payload, &p); err != nil {
@@ -313,6 +316,8 @@ func HandleRoster(_ context.Context, g *graph.Graph, env *GroupEnvelope, _ Sourc
 		return fmt.Errorf("handle roster: upsert agent: %w", err)
 	}
 
+	declaredAt := env.Timestamp.Format("2006-01-02T15:04:05Z07:00")
+
 	for _, skill := range p.Skills {
 		skillNodeID := SkillNodeID(skill)
 		if _, err := g.UpsertNode(skillNodeID, "Skill", graph.Properties{"skillName": skill}); err != nil {
@@ -320,8 +325,30 @@ func HandleRoster(_ context.Context, g *graph.Graph, env *GroupEnvelope, _ Sourc
 		}
 
 		edgeID := DeterministicEdgeID("HAS_SKILL", agentNodeID, skillNodeID)
-		if _, err := g.UpsertEdge(edgeID, "HAS_SKILL", agentNodeID, skillNodeID, nil); err != nil {
-			return fmt.Errorf("handle roster: upsert has_skill edge: %w", err)
+
+		if p.Action == "remove" {
+			// Soft-delete: mark the edge with removedAt instead of deleting.
+			props := graph.Properties{
+				"removedAt":  declaredAt,
+				"declaredAt": declaredAt,
+			}
+			if p.Version > 0 {
+				props["rosterVersion"] = p.Version
+			}
+			if _, err := g.UpsertEdge(edgeID, "HAS_SKILL", agentNodeID, skillNodeID, props); err != nil {
+				return fmt.Errorf("handle roster: upsert has_skill edge (remove): %w", err)
+			}
+		} else {
+			// "full", "add", or legacy (no action) — declare the skill.
+			props := graph.Properties{
+				"declaredAt": declaredAt,
+			}
+			if p.Version > 0 {
+				props["rosterVersion"] = p.Version
+			}
+			if _, err := g.UpsertEdge(edgeID, "HAS_SKILL", agentNodeID, skillNodeID, props); err != nil {
+				return fmt.Errorf("handle roster: upsert has_skill edge: %w", err)
+			}
 		}
 	}
 

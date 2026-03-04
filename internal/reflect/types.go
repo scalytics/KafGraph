@@ -47,6 +47,10 @@ type ScoredSignal struct {
 	Impact            float64
 	Relevance         float64
 	ValueContribution float64
+	// Enriched by Analyzer (nil/empty when analyzer is not set).
+	Entities []Entity
+	Keywords []Keyword
+	Tags     []string
 }
 
 // CycleResult holds the outcome of a completed reflection cycle.

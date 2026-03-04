@@ -1,0 +1,11 @@
+id: GDPR-CUSTOM-001
+framework: gdpr
+module: ropa
+article: "Art. 30"
+title: "All processing activities must have a data retention period"
+severity: high
+check:
+  nodeLabel: ProcessingActivity
+  requiredProperties:
+    - retentionPeriod
+  condition: "property_not_empty"

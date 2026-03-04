@@ -44,6 +44,7 @@ func (ba *BrainAdapter) ExecuteForBrain(ctx context.Context, agentID string, win
 			NodeID:  string(sig.NodeID),
 			Type:    sig.Label,
 			Summary: sig.Summary,
+			Tags:    sig.Tags,
 		}
 	}
 

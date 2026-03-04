@@ -20,8 +20,8 @@ import (
 	"strings"
 
 	"github.com/scalytics/kafgraph/internal/brain"
+	"github.com/scalytics/kafgraph/internal/cluster"
 	"github.com/scalytics/kafgraph/internal/graph"
-	"github.com/scalytics/kafgraph/internal/query"
 )
 
 // brainTools is the static list of brain tool names (Phase 3 placeholder).
@@ -36,7 +36,7 @@ var brainTools = []string{
 }
 
 // registerRoutes wires all REST CRUD routes onto the given mux.
-func registerRoutes(mux *http.ServeMux, g *graph.Graph, exec *query.Executor, bs *brain.Service) {
+func registerRoutes(mux *http.ServeMux, g *graph.Graph, exec cluster.QueryExecutor, bs *brain.Service) {
 	// Node endpoints
 	mux.HandleFunc("POST /api/v1/nodes", handleCreateNode(g))
 	mux.HandleFunc("GET /api/v1/nodes/{id}", handleGetNode(g))
@@ -246,7 +246,7 @@ type queryRequest struct {
 	Params map[string]any `json:"params"`
 }
 
-func handleQuery(exec *query.Executor) http.HandlerFunc {
+func handleQuery(exec cluster.QueryExecutor) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if exec == nil {
 			writeError(w, http.StatusNotImplemented, "query engine not available")

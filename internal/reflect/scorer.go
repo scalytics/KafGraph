@@ -24,7 +24,8 @@ import (
 
 // Scorer computes heuristic scores for graph nodes.
 type Scorer struct {
-	graph *graph.Graph
+	graph    *graph.Graph
+	analyzer Analyzer
 }
 
 // NewScorer creates a new heuristic scorer.
@@ -32,10 +33,15 @@ func NewScorer(g *graph.Graph) *Scorer {
 	return &Scorer{graph: g}
 }
 
+// NewScorerWithAnalyzer creates a scorer that enriches signals via an Analyzer.
+func NewScorerWithAnalyzer(g *graph.Graph, a Analyzer) *Scorer {
+	return &Scorer{graph: g, analyzer: a}
+}
+
 // ScoreNode computes impact, relevance, and valueContribution for a node
 // relative to its conversation context.
 func (sc *Scorer) ScoreNode(node *graph.Node, convNode *graph.Node) ScoredSignal {
-	return ScoredSignal{
+	sig := ScoredSignal{
 		NodeID:            node.ID,
 		Label:             node.Label,
 		Summary:           extractSummary(node),
@@ -43,6 +49,18 @@ func (sc *Scorer) ScoreNode(node *graph.Node, convNode *graph.Node) ScoredSignal
 		Relevance:         sc.relevance(node, convNode),
 		ValueContribution: sc.valueContribution(convNode),
 	}
+
+	if sc.analyzer != nil {
+		text := extractText(node)
+		if text != "" {
+			result := sc.analyzer.AnalyzeText(text)
+			sig.Entities = result.Entities
+			sig.Keywords = result.Keywords
+			sig.Tags = result.Tags
+		}
+	}
+
+	return sig
 }
 
 // impact counts edges from node and normalizes by a cap of 10.

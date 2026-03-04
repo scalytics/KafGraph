@@ -34,6 +34,8 @@ type SchedulerConfig struct {
 	Publisher    Publisher // nil = no event emission
 	RequestTopic string    // default "kafgraph.feedback.requests"
 	TopN         int       // top signals per request, default 5
+	// CycleRunner overrides the default runner. When nil, NewCycleRunner(g) is used.
+	CycleRunner *CycleRunner
 }
 
 // Scheduler runs reflection cycles on a schedule.
@@ -60,9 +62,13 @@ func NewScheduler(g *graph.Graph, cfg SchedulerConfig) *Scheduler {
 		}
 		checker.WithPublisher(cfg.Publisher, topic, topN)
 	}
+	runner := cfg.CycleRunner
+	if runner == nil {
+		runner = NewCycleRunner(g)
+	}
 	return &Scheduler{
 		graph:   g,
-		runner:  NewCycleRunner(g),
+		runner:  runner,
 		checker: checker,
 		config:  cfg,
 		lastRun: make(map[CycleType]time.Time),

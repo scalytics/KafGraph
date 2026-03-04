@@ -19,13 +19,16 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io/fs"
 	"net/http"
 	"time"
 
 	"github.com/scalytics/kafgraph/internal/brain"
+	"github.com/scalytics/kafgraph/internal/cluster"
+	"github.com/scalytics/kafgraph/internal/compliance"
 	"github.com/scalytics/kafgraph/internal/config"
 	"github.com/scalytics/kafgraph/internal/graph"
-	"github.com/scalytics/kafgraph/internal/query"
+	"github.com/scalytics/kafgraph/web"
 )
 
 // HTTPServer serves the KafGraph REST API and health endpoints.
@@ -38,12 +41,17 @@ type HTTPServer struct {
 type ServerOption func(*serverOpts)
 
 type serverOpts struct {
-	exec  *query.Executor
-	brain *brain.Service
+	exec       cluster.QueryExecutor
+	brain      *brain.Service
+	cfg        *config.Config
+	membership *cluster.Membership
+	partMap    *cluster.PartitionMap
+	compEngine *compliance.Engine
+	startedAt  time.Time
 }
 
 // WithExecutor sets the query executor.
-func WithExecutor(exec *query.Executor) ServerOption {
+func WithExecutor(exec cluster.QueryExecutor) ServerOption {
 	return func(o *serverOpts) { o.exec = exec }
 }
 
@@ -52,13 +60,35 @@ func WithBrain(b *brain.Service) ServerOption {
 	return func(o *serverOpts) { o.brain = b }
 }
 
+// WithConfig sets the application config for the management API.
+func WithConfig(c *config.Config) ServerOption {
+	return func(o *serverOpts) { o.cfg = c }
+}
+
+// WithMembership sets the cluster membership for the management API.
+func WithMembership(m *cluster.Membership) ServerOption {
+	return func(o *serverOpts) { o.membership = m }
+}
+
+// WithPartitionMap sets the partition map for the management API.
+func WithPartitionMap(pm *cluster.PartitionMap) ServerOption {
+	return func(o *serverOpts) { o.partMap = pm }
+}
+
+// WithCompliance sets the compliance engine for the compliance API.
+func WithCompliance(e *compliance.Engine) ServerOption {
+	return func(o *serverOpts) { o.compEngine = e }
+}
+
 // NewHTTPServer creates an HTTPServer with all routes registered.
-// Accepts optional *query.Executor for backward compatibility, plus ServerOption.
+// Accepts optional cluster.QueryExecutor for backward compatibility, plus ServerOption.
 func NewHTTPServer(addr string, g *graph.Graph, args ...any) *HTTPServer {
-	opts := &serverOpts{}
+	opts := &serverOpts{
+		startedAt: time.Now().UTC(),
+	}
 	for _, arg := range args {
 		switch v := arg.(type) {
-		case *query.Executor:
+		case cluster.QueryExecutor:
 			opts.exec = v
 		case ServerOption:
 			v(opts)
@@ -66,24 +96,40 @@ func NewHTTPServer(addr string, g *graph.Graph, args ...any) *HTTPServer {
 	}
 
 	mux := http.NewServeMux()
-	s := &HTTPServer{
-		server: &http.Server{
-			Addr:         addr,
-			Handler:      mux,
-			ReadTimeout:  15 * time.Second,
-			WriteTimeout: 15 * time.Second,
-			IdleTimeout:  60 * time.Second,
-		},
-		graph: g,
-	}
 
 	// Health and info endpoints
-	mux.HandleFunc("GET /healthz", s.handleHealthz)
+	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) {
+		writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
+	})
+
+	s := &HTTPServer{
+		graph: g,
+	}
 	mux.HandleFunc("GET /readyz", s.handleReadyz)
 	mux.HandleFunc("GET /version", s.handleVersion)
 
 	// Register CRUD + query + brain tool routes
 	registerRoutes(mux, g, opts.exec, opts.brain)
+
+	// Register management API routes (Phase 8)
+	registerManagementRoutes(mux, g, opts)
+
+	// Register compliance API routes
+	registerComplianceRoutes(mux, g, opts.compEngine)
+
+	// Serve embedded UI static files (registered last so API routes take precedence)
+	staticFS, err := fs.Sub(web.StaticFS, "static")
+	if err == nil {
+		mux.Handle("/", http.FileServer(http.FS(staticFS)))
+	}
+
+	s.server = &http.Server{
+		Addr:         addr,
+		Handler:      corsMiddleware(mux),
+		ReadTimeout:  15 * time.Second,
+		WriteTimeout: 15 * time.Second,
+		IdleTimeout:  60 * time.Second,
+	}
 
 	return s
 }
@@ -104,10 +150,6 @@ func (s *HTTPServer) Handler() http.Handler {
 // Shutdown gracefully shuts down the HTTP server.
 func (s *HTTPServer) Shutdown(ctx context.Context) error {
 	return s.server.Shutdown(ctx)
-}
-
-func (s *HTTPServer) handleHealthz(w http.ResponseWriter, _ *http.Request) {
-	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 }
 
 func (s *HTTPServer) handleReadyz(w http.ResponseWriter, _ *http.Request) {
@@ -145,4 +187,20 @@ func readJSON(r *http.Request, dst any) error {
 	}
 	defer func() { _ = r.Body.Close() }()
 	return json.NewDecoder(r.Body).Decode(dst)
+}
+
+// corsMiddleware adds CORS headers and handles preflight requests.
+func corsMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+
+		if r.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+
+		next.ServeHTTP(w, r)
+	})
 }
