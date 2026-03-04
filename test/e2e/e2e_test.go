@@ -88,7 +88,7 @@ func TestE2EGraphCRUD(t *testing.T) {
 
 // TestE2EBoltHandshake validates the Bolt v4 handshake with a real TCP connection.
 func TestE2EBoltHandshake(t *testing.T) {
-	srv, err := server.NewBoltServer("127.0.0.1:0")
+	srv, err := server.NewBoltServer("127.0.0.1:0", nil)
 	require.NoError(t, err)
 	defer srv.Close()
 

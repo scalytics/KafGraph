@@ -24,6 +24,9 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/scalytics/kafgraph/internal/graph"
+	"github.com/scalytics/kafgraph/internal/query"
 )
 
 func TestHandshakeSuccess(t *testing.T) {
@@ -79,7 +82,7 @@ func TestHandshakeNoSupportedVersion(t *testing.T) {
 }
 
 func TestNewBoltServer(t *testing.T) {
-	srv, err := NewBoltServer("127.0.0.1:0")
+	srv, err := NewBoltServer("127.0.0.1:0", nil)
 	require.NoError(t, err)
 	defer srv.Close()
 
@@ -87,7 +90,7 @@ func TestNewBoltServer(t *testing.T) {
 }
 
 func TestBoltServeAcceptsConnection(t *testing.T) {
-	srv, err := NewBoltServer("127.0.0.1:0")
+	srv, err := NewBoltServer("127.0.0.1:0", nil)
 	require.NoError(t, err)
 	defer srv.Close()
 
@@ -118,6 +121,135 @@ func TestBoltServeAcceptsConnection(t *testing.T) {
 	// Cancel to stop the server
 	cancel()
 	srv.Close()
+}
+
+func TestBoltMessageLoop(t *testing.T) {
+	store := newBadgerTestStorage(t)
+	g := graph.New(store)
+	defer g.Close()
+
+	g.CreateNode("Agent", graph.Properties{"name": "alice"})
+	g.CreateNode("Agent", graph.Properties{"name": "bob"})
+
+	exec := query.NewExecutor(g, nil, nil)
+
+	srv, err := NewBoltServer("127.0.0.1:0", exec)
+	require.NoError(t, err)
+	defer srv.Close()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go srv.Serve(ctx) //nolint:errcheck
+
+	conn, err := net.Dial("tcp", srv.Addr())
+	require.NoError(t, err)
+	defer conn.Close()
+
+	// Handshake
+	binary.Write(conn, binary.BigEndian, BoltMagic)      //nolint:errcheck
+	binary.Write(conn, binary.BigEndian, BoltVersion4_4) //nolint:errcheck
+	binary.Write(conn, binary.BigEndian, uint32(0))      //nolint:errcheck
+	binary.Write(conn, binary.BigEndian, uint32(0))      //nolint:errcheck
+	binary.Write(conn, binary.BigEndian, uint32(0))      //nolint:errcheck
+
+	var negotiated uint32
+	require.NoError(t, binary.Read(conn, binary.BigEndian, &negotiated))
+	require.Equal(t, BoltVersion4_4, negotiated)
+
+	// Send HELLO
+	require.NoError(t, SendMessage(conn, MsgHELLO, map[string]any{"user_agent": "test/1.0"}))
+	helloResp, err := DecodeMessage(conn)
+	require.NoError(t, err)
+	assert.Equal(t, MsgSUCCESS, helloResp.Type)
+
+	// Send RUN
+	require.NoError(t, SendMessage(conn, MsgRUN, "MATCH (n:Agent) RETURN n", map[string]any{}))
+	runResp, err := DecodeMessage(conn)
+	require.NoError(t, err)
+	assert.Equal(t, MsgSUCCESS, runResp.Type)
+
+	// Send PULL
+	require.NoError(t, SendMessage(conn, MsgPULL, map[string]any{"n": int64(-1)}))
+
+	// Read RECORD messages
+	var records int
+	for {
+		msg, err := DecodeMessage(conn)
+		require.NoError(t, err)
+		if msg.Type == MsgSUCCESS {
+			break
+		}
+		assert.Equal(t, MsgRECORD, msg.Type)
+		records++
+	}
+	assert.Equal(t, 2, records)
+
+	// Send RESET
+	require.NoError(t, SendMessage(conn, MsgRESET))
+	resetResp, err := DecodeMessage(conn)
+	require.NoError(t, err)
+	assert.Equal(t, MsgSUCCESS, resetResp.Type)
+}
+
+func TestBoltMessageLoopInvalidQuery(t *testing.T) {
+	store := newBadgerTestStorage(t)
+	g := graph.New(store)
+	defer g.Close()
+
+	exec := query.NewExecutor(g, nil, nil)
+
+	srv, err := NewBoltServer("127.0.0.1:0", exec)
+	require.NoError(t, err)
+	defer srv.Close()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go srv.Serve(ctx) //nolint:errcheck
+
+	conn, err := net.Dial("tcp", srv.Addr())
+	require.NoError(t, err)
+	defer conn.Close()
+
+	// Handshake
+	binary.Write(conn, binary.BigEndian, BoltMagic)      //nolint:errcheck
+	binary.Write(conn, binary.BigEndian, BoltVersion4_4) //nolint:errcheck
+	binary.Write(conn, binary.BigEndian, uint32(0))      //nolint:errcheck
+	binary.Write(conn, binary.BigEndian, uint32(0))      //nolint:errcheck
+	binary.Write(conn, binary.BigEndian, uint32(0))      //nolint:errcheck
+
+	var negotiated uint32
+	require.NoError(t, binary.Read(conn, binary.BigEndian, &negotiated))
+
+	// HELLO
+	require.NoError(t, SendMessage(conn, MsgHELLO, map[string]any{}))
+	_, err = DecodeMessage(conn)
+	require.NoError(t, err)
+
+	// RUN with invalid query
+	require.NoError(t, SendMessage(conn, MsgRUN, "INVALID QUERY", map[string]any{}))
+	resp, err := DecodeMessage(conn)
+	require.NoError(t, err)
+	assert.Equal(t, MsgFAILURE, resp.Type)
+}
+
+func TestExtractParams(t *testing.T) {
+	msg := &BoltMessage{Type: MsgRUN, Fields: []any{"MATCH (n) RETURN n", map[string]any{"x": int64(1)}}}
+	params := extractParams(msg)
+	assert.Equal(t, int64(1), params["x"])
+
+	// No params field
+	msg2 := &BoltMessage{Type: MsgRUN, Fields: []any{"query"}}
+	assert.Nil(t, extractParams(msg2))
+
+	// Wrong type
+	msg3 := &BoltMessage{Type: MsgRUN, Fields: []any{"query", "not-a-map"}}
+	assert.Nil(t, extractParams(msg3))
+}
+
+func TestToAnySlice(t *testing.T) {
+	result := toAnySlice([]string{"a", "b", "c"})
+	assert.Equal(t, []any{"a", "b", "c"}, result)
+	assert.Empty(t, toAnySlice(nil))
 }
 
 // readWriter combines separate reader and writer for testing.

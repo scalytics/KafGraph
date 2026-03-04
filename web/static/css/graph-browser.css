@@ -1,0 +1,135 @@
+/* KafGraph Graph Browser */
+.graph-container {
+  display: grid;
+  grid-template-columns: 1fr;
+  grid-template-rows: auto 1fr;
+  height: calc(100vh - var(--topbar-height) - var(--space-lg) * 2);
+}
+
+.graph-container.detail-open {
+  grid-template-columns: 1fr 280px;
+  grid-template-rows: auto 1fr;
+}
+
+.graph-toolbar {
+  grid-column: 1 / -1;
+}
+
+.graph-canvas {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  min-height: 400px;
+  position: relative;
+}
+
+.graph-canvas #cy {
+  width: 100%;
+  height: 100%;
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+
+.graph-detail {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  margin-left: var(--space-md);
+  padding: var(--space-md);
+  overflow-y: auto;
+}
+
+.graph-detail .detail-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--space-md);
+  padding-bottom: var(--space-sm);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.graph-detail .detail-title {
+  font-weight: 600;
+  font-size: var(--font-size-md);
+}
+
+.graph-detail .detail-close {
+  cursor: pointer;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-lg);
+  border: none;
+  background: none;
+  padding: var(--space-xs);
+}
+
+.graph-detail .detail-section {
+  margin-bottom: var(--space-md);
+}
+
+.graph-detail .detail-section-title {
+  font-size: var(--font-size-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-text-secondary);
+  margin-bottom: var(--space-sm);
+}
+
+.graph-detail .prop-key {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
+.graph-detail .prop-value {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+  color: var(--color-text-primary);
+  word-break: break-all;
+}
+
+/* Layout selector */
+.layout-selector {
+  display: flex;
+  gap: 2px;
+  background: var(--color-content-bg);
+  border-radius: var(--radius-sm);
+  padding: 2px;
+}
+
+.layout-btn {
+  padding: 4px 10px;
+  border: none;
+  border-radius: 3px;
+  font-size: var(--font-size-xs);
+  cursor: pointer;
+  background: transparent;
+  color: var(--color-text-secondary);
+  font-family: var(--font-sans);
+}
+
+.layout-btn.active {
+  background: var(--color-surface);
+  color: var(--color-text-primary);
+  box-shadow: var(--shadow-sm);
+}
+
+/* Legend */
+.graph-legend {
+  display: flex;
+  gap: var(--space-md);
+  flex-wrap: wrap;
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+}
+
+.legend-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}

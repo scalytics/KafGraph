@@ -19,6 +19,8 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/scalytics/kafgraph/internal/brain"
+	"github.com/scalytics/kafgraph/internal/cluster"
 	"github.com/scalytics/kafgraph/internal/graph"
 )
 
@@ -34,7 +36,7 @@ var brainTools = []string{
 }
 
 // registerRoutes wires all REST CRUD routes onto the given mux.
-func registerRoutes(mux *http.ServeMux, g *graph.Graph) {
+func registerRoutes(mux *http.ServeMux, g *graph.Graph, exec cluster.QueryExecutor, bs *brain.Service) {
 	// Node endpoints
 	mux.HandleFunc("POST /api/v1/nodes", handleCreateNode(g))
 	mux.HandleFunc("GET /api/v1/nodes/{id}", handleGetNode(g))
@@ -49,8 +51,18 @@ func registerRoutes(mux *http.ServeMux, g *graph.Graph) {
 	// Node neighbors
 	mux.HandleFunc("GET /api/v1/nodes/{id}/edges", handleNodeEdges(g))
 
-	// Tool schema (placeholder)
+	// Tool schema
 	mux.HandleFunc("GET /api/v1/tools", handleListTools())
+
+	// Query endpoint
+	mux.HandleFunc("POST /api/v1/query", handleQuery(exec))
+
+	// Cycle endpoints (Phase 6)
+	mux.HandleFunc("GET /api/v1/cycles", handleListCycles(g))
+	mux.HandleFunc("POST /api/v1/cycles/{id}/waive", handleWaiveCycle(g))
+
+	// Brain tool endpoint
+	mux.HandleFunc("POST /api/v1/tools/{toolName}", handleToolExec(bs))
 }
 
 // --- Node handlers ---
@@ -224,5 +236,231 @@ func handleListTools() http.HandlerFunc {
 		writeJSON(w, http.StatusOK, map[string]any{
 			"tools": brainTools,
 		})
+	}
+}
+
+// --- Query handler ---
+
+type queryRequest struct {
+	Cypher string         `json:"cypher"`
+	Params map[string]any `json:"params"`
+}
+
+func handleQuery(exec cluster.QueryExecutor) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if exec == nil {
+			writeError(w, http.StatusNotImplemented, "query engine not available")
+			return
+		}
+		var req queryRequest
+		if err := readJSON(r, &req); err != nil {
+			writeError(w, http.StatusBadRequest, "invalid JSON: "+err.Error())
+			return
+		}
+		if req.Cypher == "" {
+			writeError(w, http.StatusBadRequest, "cypher query is required")
+			return
+		}
+		rs, err := exec.Execute(req.Cypher, req.Params)
+		if err != nil {
+			writeError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		// Convert rows to [][]any for JSON output
+		rows := make([][]any, len(rs.Rows))
+		for i, row := range rs.Rows {
+			rowData := make([]any, len(rs.Columns))
+			for j, col := range rs.Columns {
+				rowData[j] = row[col]
+			}
+			rows[i] = rowData
+		}
+		writeJSON(w, http.StatusOK, map[string]any{
+			"columns": rs.Columns,
+			"rows":    rows,
+		})
+	}
+}
+
+// --- Cycle handlers (Phase 6) ---
+
+func handleListCycles(g *graph.Graph) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		cycles, err := g.NodesByLabel("ReflectionCycle")
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+		if cycles == nil {
+			cycles = []*graph.Node{}
+		}
+
+		statusFilter := r.URL.Query().Get("status")
+		agentFilter := r.URL.Query().Get("agentId")
+
+		var filtered []*graph.Node
+		for _, c := range cycles {
+			if statusFilter != "" {
+				fbStatus, _ := c.Properties["humanFeedbackStatus"].(string)
+				if fbStatus != statusFilter {
+					continue
+				}
+			}
+			if agentFilter != "" {
+				agentID, _ := c.Properties["agentId"].(string)
+				if agentID != agentFilter {
+					continue
+				}
+			}
+			filtered = append(filtered, c)
+		}
+		if filtered == nil {
+			filtered = []*graph.Node{}
+		}
+		writeJSON(w, http.StatusOK, filtered)
+	}
+}
+
+func handleWaiveCycle(g *graph.Graph) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		id := r.PathValue("id")
+
+		node, err := g.GetNode(graph.NodeID(id))
+		if err != nil {
+			if strings.Contains(err.Error(), "not found") {
+				writeError(w, http.StatusNotFound, "cycle not found: "+id)
+				return
+			}
+			writeError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+
+		if node.Label != "ReflectionCycle" {
+			writeError(w, http.StatusBadRequest, "node is not a ReflectionCycle")
+			return
+		}
+
+		fbStatus, _ := node.Properties["humanFeedbackStatus"].(string)
+		if fbStatus != "NEEDS_FEEDBACK" && fbStatus != "REQUESTED" {
+			writeError(w, http.StatusConflict, "cycle status is "+fbStatus+", expected NEEDS_FEEDBACK or REQUESTED")
+			return
+		}
+
+		if _, err := g.UpsertNode(graph.NodeID(id), "ReflectionCycle", graph.Properties{
+			"humanFeedbackStatus": "WAIVED",
+		}); err != nil {
+			writeError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+
+		updated, _ := g.GetNode(graph.NodeID(id))
+		writeJSON(w, http.StatusOK, updated)
+	}
+}
+
+// --- Brain tool handler ---
+
+func handleToolExec(bs *brain.Service) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if bs == nil {
+			writeError(w, http.StatusNotImplemented, "brain tools not available")
+			return
+		}
+		toolName := r.PathValue("toolName")
+		switch toolName {
+		case "brain_search":
+			var in brain.SearchInput
+			if err := readJSON(r, &in); err != nil {
+				writeError(w, http.StatusBadRequest, "invalid JSON: "+err.Error())
+				return
+			}
+			out, err := bs.Search(in)
+			if err != nil {
+				writeError(w, http.StatusInternalServerError, err.Error())
+				return
+			}
+			writeJSON(w, http.StatusOK, out)
+
+		case "brain_recall":
+			var in brain.RecallInput
+			if err := readJSON(r, &in); err != nil {
+				writeError(w, http.StatusBadRequest, "invalid JSON: "+err.Error())
+				return
+			}
+			out, err := bs.Recall(in)
+			if err != nil {
+				writeError(w, http.StatusInternalServerError, err.Error())
+				return
+			}
+			writeJSON(w, http.StatusOK, out)
+
+		case "brain_capture":
+			var in brain.CaptureInput
+			if err := readJSON(r, &in); err != nil {
+				writeError(w, http.StatusBadRequest, "invalid JSON: "+err.Error())
+				return
+			}
+			out, err := bs.Capture(in)
+			if err != nil {
+				writeError(w, http.StatusBadRequest, err.Error())
+				return
+			}
+			writeJSON(w, http.StatusCreated, out)
+
+		case "brain_recent":
+			var in brain.RecentInput
+			if err := readJSON(r, &in); err != nil {
+				writeError(w, http.StatusBadRequest, "invalid JSON: "+err.Error())
+				return
+			}
+			out, err := bs.Recent(in)
+			if err != nil {
+				writeError(w, http.StatusInternalServerError, err.Error())
+				return
+			}
+			writeJSON(w, http.StatusOK, out)
+
+		case "brain_patterns":
+			var in brain.PatternsInput
+			if err := readJSON(r, &in); err != nil {
+				writeError(w, http.StatusBadRequest, "invalid JSON: "+err.Error())
+				return
+			}
+			out, err := bs.Patterns(in)
+			if err != nil {
+				writeError(w, http.StatusInternalServerError, err.Error())
+				return
+			}
+			writeJSON(w, http.StatusOK, out)
+
+		case "brain_reflect":
+			var in brain.ReflectInput
+			if err := readJSON(r, &in); err != nil {
+				writeError(w, http.StatusBadRequest, "invalid JSON: "+err.Error())
+				return
+			}
+			out, err := bs.Reflect(in)
+			if err != nil {
+				writeError(w, http.StatusInternalServerError, err.Error())
+				return
+			}
+			writeJSON(w, http.StatusOK, out)
+
+		case "brain_feedback":
+			var in brain.FeedbackInput
+			if err := readJSON(r, &in); err != nil {
+				writeError(w, http.StatusBadRequest, "invalid JSON: "+err.Error())
+				return
+			}
+			out, err := bs.Feedback(in)
+			if err != nil {
+				writeError(w, http.StatusBadRequest, err.Error())
+				return
+			}
+			writeJSON(w, http.StatusOK, out)
+
+		default:
+			writeError(w, http.StatusNotFound, "unknown tool: "+toolName)
+		}
 	}
 }

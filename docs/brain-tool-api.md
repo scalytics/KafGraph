@@ -34,7 +34,7 @@ Semantic search — find nodes by meaning, not keywords.
 ```json
 {
   "results": [
-    { "nodeId": "string", "type": "string", "content": "string", "score": 0.95, "connections": [] }
+    { "nodeId": "string", "type": "string", "content": "string", "score": 0.95, "properties": {} }
   ]
 }
 ```
@@ -57,10 +57,9 @@ pending feedback, team context, and unresolved threads.
 ```json
 {
   "context": {
-    "activeConversations": [],
+    "activeConversations": [{ "nodeId": "string", "type": "string", "summary": "string", "timestamp": "ISO8601" }],
     "recentDecisions": [],
     "pendingFeedback": [],
-    "teamContext": {},
     "unresolvedThreads": []
   }
 }
@@ -86,8 +85,7 @@ auto-embedded, auto-classified, and auto-linked to related graph nodes.
 ```json
 {
   "nodeId": "string",
-  "linkedTo": ["nodeId"],
-  "embeddingGenerated": true
+  "linkedTo": ["nodeId"]
 }
 ```
 

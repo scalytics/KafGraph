@@ -158,3 +158,109 @@ func TestBadgerNodesByLabel(t *testing.T) {
 	require.NoError(t, err)
 	assert.Len(t, agents, 2)
 }
+
+// --- IndexedStorage tests ---
+
+func TestBadgerNodeIDsByLabel(t *testing.T) {
+	s := newTestStorage(t)
+
+	s.PutNode(&graph.Node{ID: "n:1", Label: "Agent", CreatedAt: time.Now().UTC()})
+	s.PutNode(&graph.Node{ID: "n:2", Label: "Agent", CreatedAt: time.Now().UTC()})
+	s.PutNode(&graph.Node{ID: "n:3", Label: "Message", CreatedAt: time.Now().UTC()})
+
+	ids, err := s.NodeIDsByLabel("Agent")
+	require.NoError(t, err)
+	assert.Len(t, ids, 2)
+}
+
+func TestBadgerOutgoingEdgeIDs(t *testing.T) {
+	s := newTestStorage(t)
+
+	s.PutNode(&graph.Node{ID: "n:a", Label: "Agent", CreatedAt: time.Now().UTC()})
+	s.PutNode(&graph.Node{ID: "n:b", Label: "Agent", CreatedAt: time.Now().UTC()})
+	s.PutEdge(&graph.Edge{ID: "e:1", Label: "KNOWS", FromID: "n:a", ToID: "n:b", CreatedAt: time.Now().UTC()})
+
+	ids, err := s.OutgoingEdgeIDs("n:a")
+	require.NoError(t, err)
+	assert.Len(t, ids, 1)
+	assert.Equal(t, graph.EdgeID("e:1"), ids[0])
+}
+
+func TestBadgerIncomingEdgeIDs(t *testing.T) {
+	s := newTestStorage(t)
+
+	s.PutNode(&graph.Node{ID: "n:a", Label: "Agent", CreatedAt: time.Now().UTC()})
+	s.PutNode(&graph.Node{ID: "n:b", Label: "Agent", CreatedAt: time.Now().UTC()})
+	s.PutEdge(&graph.Edge{ID: "e:1", Label: "KNOWS", FromID: "n:a", ToID: "n:b", CreatedAt: time.Now().UTC()})
+
+	ids, err := s.IncomingEdgeIDs("n:b")
+	require.NoError(t, err)
+	assert.Len(t, ids, 1)
+	assert.Equal(t, graph.EdgeID("e:1"), ids[0])
+}
+
+func TestBadgerEdgeIDsByLabel(t *testing.T) {
+	s := newTestStorage(t)
+
+	s.PutEdge(&graph.Edge{ID: "e:1", Label: "KNOWS", FromID: "n:a", ToID: "n:b", CreatedAt: time.Now().UTC()})
+	s.PutEdge(&graph.Edge{ID: "e:2", Label: "KNOWS", FromID: "n:b", ToID: "n:c", CreatedAt: time.Now().UTC()})
+	s.PutEdge(&graph.Edge{ID: "e:3", Label: "LIKES", FromID: "n:a", ToID: "n:c", CreatedAt: time.Now().UTC()})
+
+	ids, err := s.EdgeIDsByLabel("KNOWS")
+	require.NoError(t, err)
+	assert.Len(t, ids, 2)
+}
+
+func TestBadgerIndexSurvivesNodeUpdate(t *testing.T) {
+	s := newTestStorage(t)
+
+	node := &graph.Node{ID: "n:1", Label: "Agent", Properties: graph.Properties{"v": "1"}, CreatedAt: time.Now().UTC()}
+	require.NoError(t, s.PutNode(node))
+
+	// Update the node
+	node.Properties["v"] = "2"
+	require.NoError(t, s.PutNode(node))
+
+	// Index should still have exactly one entry
+	ids, err := s.NodeIDsByLabel("Agent")
+	require.NoError(t, err)
+	assert.Len(t, ids, 1)
+}
+
+func TestBadgerIndexCleanupOnDeleteNode(t *testing.T) {
+	s := newTestStorage(t)
+
+	s.PutNode(&graph.Node{ID: "n:a", Label: "Agent", CreatedAt: time.Now().UTC()})
+	s.PutNode(&graph.Node{ID: "n:b", Label: "Agent", CreatedAt: time.Now().UTC()})
+	s.PutEdge(&graph.Edge{ID: "e:1", Label: "KNOWS", FromID: "n:a", ToID: "n:b", CreatedAt: time.Now().UTC()})
+
+	require.NoError(t, s.DeleteNode("n:a"))
+
+	ids, err := s.NodeIDsByLabel("Agent")
+	require.NoError(t, err)
+	assert.Len(t, ids, 1) // only n:b remains
+
+	out, err := s.OutgoingEdgeIDs("n:a")
+	require.NoError(t, err)
+	assert.Nil(t, out)
+}
+
+func TestBadgerIndexCleanupOnDeleteEdge(t *testing.T) {
+	s := newTestStorage(t)
+
+	s.PutEdge(&graph.Edge{ID: "e:1", Label: "KNOWS", FromID: "n:a", ToID: "n:b", CreatedAt: time.Now().UTC()})
+	require.NoError(t, s.DeleteEdge("e:1"))
+
+	ids, err := s.EdgeIDsByLabel("KNOWS")
+	require.NoError(t, err)
+	assert.Nil(t, ids)
+
+	out, err := s.OutgoingEdgeIDs("n:a")
+	require.NoError(t, err)
+	assert.Nil(t, out)
+}
+
+func TestBadgerDBAccessor(t *testing.T) {
+	s := newTestStorage(t)
+	assert.NotNil(t, s.DB())
+}

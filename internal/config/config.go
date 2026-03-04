@@ -40,9 +40,23 @@ type Config struct {
 	LogLevel  string `mapstructure:"log_level"`
 	LogFormat string `mapstructure:"log_format"`
 
-	Kafka  KafkaConfig  `mapstructure:"kafka"`
-	S3     S3Config     `mapstructure:"s3"`
-	Ingest IngestConfig `mapstructure:"ingest"`
+	Kafka      KafkaConfig      `mapstructure:"kafka"`
+	S3         S3Config         `mapstructure:"s3"`
+	Ingest     IngestConfig     `mapstructure:"ingest"`
+	Reflect    ReflectConfig    `mapstructure:"reflect"`
+	Cluster    ClusterConfig    `mapstructure:"cluster"`
+	Compliance ComplianceConfig `mapstructure:"compliance"`
+}
+
+// ClusterConfig holds settings for multi-node distribution.
+type ClusterConfig struct {
+	Enabled       bool     `mapstructure:"enabled"`
+	NodeName      string   `mapstructure:"node_name"`
+	BindAddr      string   `mapstructure:"bind_addr"`
+	GossipPort    int      `mapstructure:"gossip_port"`
+	RPCPort       int      `mapstructure:"rpc_port"`
+	Seeds         []string `mapstructure:"seeds"`
+	NumPartitions int      `mapstructure:"num_partitions"`
 }
 
 // IngestConfig holds settings for the Kafka ingestion processor.
@@ -59,6 +73,28 @@ type KafkaConfig struct {
 	Brokers     string `mapstructure:"brokers"`
 	GroupID     string `mapstructure:"group_id"`
 	TopicPrefix string `mapstructure:"topic_prefix"`
+}
+
+// ReflectConfig holds settings for the reflection engine scheduler.
+type ReflectConfig struct {
+	Enabled              bool   `mapstructure:"enabled"`
+	CheckInterval        string `mapstructure:"check_interval"`
+	DailyTime            string `mapstructure:"daily_time"`
+	WeeklyDay            string `mapstructure:"weekly_day"`
+	WeeklyTime           string `mapstructure:"weekly_time"`
+	MonthlyDay           int    `mapstructure:"monthly_day"`
+	MonthlyTime          string `mapstructure:"monthly_time"`
+	FeedbackGracePeriod  string `mapstructure:"feedback_grace_period"`
+	FeedbackRequestTopic string `mapstructure:"feedback_request_topic"`
+	FeedbackTopN         int    `mapstructure:"feedback_top_n"`
+}
+
+// ComplianceConfig holds settings for the compliance engine.
+type ComplianceConfig struct {
+	Enabled      bool   `mapstructure:"enabled"`
+	RulesDir     string `mapstructure:"rules_dir"`
+	ScanInterval string `mapstructure:"scan_interval"`
+	AutoScan     bool   `mapstructure:"auto_scan"`
 }
 
 // S3Config holds S3/MinIO connection settings.
@@ -93,6 +129,27 @@ func Load() (*Config, error) {
 	v.SetDefault("ingest.batch_size", 1000)
 	v.SetDefault("ingest.namespace", "kafgraph-ingest")
 	v.SetDefault("ingest.group_name", "")
+	v.SetDefault("reflect.enabled", false)
+	v.SetDefault("reflect.check_interval", "1m")
+	v.SetDefault("reflect.daily_time", "02:00")
+	v.SetDefault("reflect.weekly_day", "Monday")
+	v.SetDefault("reflect.weekly_time", "03:00")
+	v.SetDefault("reflect.monthly_day", 1)
+	v.SetDefault("reflect.monthly_time", "04:00")
+	v.SetDefault("reflect.feedback_grace_period", "24h")
+	v.SetDefault("reflect.feedback_request_topic", "kafgraph.feedback.requests")
+	v.SetDefault("reflect.feedback_top_n", 5)
+	v.SetDefault("compliance.enabled", true)
+	v.SetDefault("compliance.rules_dir", "./rules")
+	v.SetDefault("compliance.scan_interval", "24h")
+	v.SetDefault("compliance.auto_scan", false)
+	v.SetDefault("cluster.enabled", false)
+	v.SetDefault("cluster.node_name", "")
+	v.SetDefault("cluster.bind_addr", "0.0.0.0")
+	v.SetDefault("cluster.gossip_port", 7946)
+	v.SetDefault("cluster.rpc_port", 7948)
+	v.SetDefault("cluster.seeds", []string{})
+	v.SetDefault("cluster.num_partitions", 16)
 
 	// Config file
 	v.SetConfigName("kafgraph")

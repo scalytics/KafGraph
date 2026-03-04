@@ -309,3 +309,12 @@ func TestUpsertEdgeIdempotent(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, e1.ID, e2.ID)
 }
+
+func TestStorageBackend(t *testing.T) {
+	s := newMemStorage()
+	g := New(s)
+	defer g.Close()
+
+	backend := g.StorageBackend()
+	assert.Equal(t, s, backend)
+}

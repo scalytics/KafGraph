@@ -1,0 +1,21 @@
+/* KafGraph Chart Containers */
+.chart-container {
+  width: 100%;
+  min-height: 300px;
+  position: relative;
+}
+
+.chart-container-sm {
+  min-height: 200px;
+}
+
+.chart-container-lg {
+  min-height: 400px;
+}
+
+.chart-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
+  gap: var(--space-md);
+  margin-bottom: var(--space-lg);
+}

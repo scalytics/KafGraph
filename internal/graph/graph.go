@@ -78,6 +78,15 @@ type Storage interface {
 	Close() error
 }
 
+// IndexedStorage extends Storage with index-backed query methods.
+type IndexedStorage interface {
+	Storage
+	NodeIDsByLabel(label string) ([]NodeID, error)
+	OutgoingEdgeIDs(nodeID NodeID) ([]EdgeID, error)
+	IncomingEdgeIDs(nodeID NodeID) ([]EdgeID, error)
+	EdgeIDsByLabel(label string) ([]EdgeID, error)
+}
+
 // Graph is the core graph engine providing CRUD operations over a Storage backend.
 type Graph struct {
 	mu      sync.RWMutex
@@ -244,6 +253,11 @@ func (g *Graph) UpsertEdge(id EdgeID, label string, from, to NodeID, props Prope
 		return nil, fmt.Errorf("upsert edge: %w", err)
 	}
 	return edge, nil
+}
+
+// StorageBackend returns the underlying storage implementation.
+func (g *Graph) StorageBackend() Storage {
+	return g.storage
 }
 
 // Close shuts down the graph and releases storage resources.

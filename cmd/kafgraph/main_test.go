@@ -16,6 +16,7 @@
 package main
 
 import (
+	"context"
 	"os"
 	"testing"
 	"time"
@@ -33,17 +34,16 @@ func TestRunStartsAndStops(t *testing.T) {
 	defer os.Unsetenv("KAFGRAPH_PORT")
 	defer os.Unsetenv("KAFGRAPH_BOLT_PORT")
 
+	ctx, cancel := context.WithCancel(context.Background())
+
 	errCh := make(chan error, 1)
 	go func() {
-		errCh <- run()
+		errCh <- run(ctx)
 	}()
 
-	// Give the server a moment to start, then send it a signal
+	// Give the server a moment to start, then cancel
 	time.Sleep(100 * time.Millisecond)
-
-	// Send SIGINT to trigger shutdown
-	p, _ := os.FindProcess(os.Getpid())
-	_ = p.Signal(os.Interrupt)
+	cancel()
 
 	select {
 	case err := <-errCh:

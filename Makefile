@@ -184,6 +184,15 @@ docs-build: ## Build static Jekyll site
 docs-sync-check: ## Verify docs match code (CI gate)
 	@bash hack/docs-sync-check.sh
 
+# ─── UI ─────────────────────────────────────────────────────────────────────
+
+.PHONY: ui-vendor
+ui-vendor: ## Download vendored JS libraries for management UI
+	@mkdir -p web/static/lib
+	curl -sL "https://unpkg.com/cytoscape@3.30.4/dist/cytoscape.min.js" -o web/static/lib/cytoscape.min.js
+	curl -sL "https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js" -o web/static/lib/echarts.min.js
+	@echo "UI libraries vendored."
+
 # ─── Code Generation ────────────────────────────────────────────────────────
 
 .PHONY: generate
@@ -205,6 +214,16 @@ spec-check: ## Validate requirement files
 .PHONY: release-check
 release-check: lint test-race cover-check fmt-check docs-sync-check ## Full pre-release gate
 	@echo "All release checks passed."
+
+# ─── Demo ────────────────────────────────────────────────────────────────────
+
+.PHONY: demo-seed
+demo-seed: ## Seed demo data and start HTTP server for browsing
+	$(GO) run ./cmd/demo-seed --serve
+
+.PHONY: demo-generate
+demo-generate: ## Export demo envelopes as JSON files to demo/data/
+	$(GO) run ./cmd/demo-seed --export demo/data
 
 # ─── Dev ─────────────────────────────────────────────────────────────────────
 

@@ -297,6 +297,9 @@ func HandleAudit(_ context.Context, g *graph.Graph, env *GroupEnvelope, src Sour
 }
 
 // HandleRoster creates Skill nodes from an agent's skill manifest.
+// Supports REQ-009 fields: Version (roster counter) and Action ("full", "add", "remove").
+// When action is "remove", existing HAS_SKILL edges get a removedAt timestamp.
+// Backward compatible: envelopes without Version/Action work as before.
 func HandleRoster(_ context.Context, g *graph.Graph, env *GroupEnvelope, _ SourceOffset) error {
 	var p RosterPayload
 	if err := json.Unmarshal(env.Payload, &p); err != nil {
@@ -313,6 +316,8 @@ func HandleRoster(_ context.Context, g *graph.Graph, env *GroupEnvelope, _ Sourc
 		return fmt.Errorf("handle roster: upsert agent: %w", err)
 	}
 
+	declaredAt := env.Timestamp.Format("2006-01-02T15:04:05Z07:00")
+
 	for _, skill := range p.Skills {
 		skillNodeID := SkillNodeID(skill)
 		if _, err := g.UpsertNode(skillNodeID, "Skill", graph.Properties{"skillName": skill}); err != nil {
@@ -320,12 +325,109 @@ func HandleRoster(_ context.Context, g *graph.Graph, env *GroupEnvelope, _ Sourc
 		}
 
 		edgeID := DeterministicEdgeID("HAS_SKILL", agentNodeID, skillNodeID)
-		if _, err := g.UpsertEdge(edgeID, "HAS_SKILL", agentNodeID, skillNodeID, nil); err != nil {
-			return fmt.Errorf("handle roster: upsert has_skill edge: %w", err)
+
+		if p.Action == "remove" {
+			// Soft-delete: mark the edge with removedAt instead of deleting.
+			props := graph.Properties{
+				"removedAt":  declaredAt,
+				"declaredAt": declaredAt,
+			}
+			if p.Version > 0 {
+				props["rosterVersion"] = p.Version
+			}
+			if _, err := g.UpsertEdge(edgeID, "HAS_SKILL", agentNodeID, skillNodeID, props); err != nil {
+				return fmt.Errorf("handle roster: upsert has_skill edge (remove): %w", err)
+			}
+		} else {
+			// "full", "add", or legacy (no action) — declare the skill.
+			props := graph.Properties{
+				"declaredAt": declaredAt,
+			}
+			if p.Version > 0 {
+				props["rosterVersion"] = p.Version
+			}
+			if _, err := g.UpsertEdge(edgeID, "HAS_SKILL", agentNodeID, skillNodeID, props); err != nil {
+				return fmt.Errorf("handle roster: upsert has_skill edge: %w", err)
+			}
 		}
 	}
 
 	return nil
+}
+
+// HandleHumanFeedback processes inbound human feedback on a reflection cycle.
+// It creates a HumanFeedback node, links it to the cycle, updates the cycle's
+// humanFeedbackStatus to RECEIVED, and applies score overrides to linked signals.
+func HandleHumanFeedback(_ context.Context, g *graph.Graph, env *GroupEnvelope, src SourceOffset) error {
+	var p HumanFeedbackPayload
+	if err := json.Unmarshal(env.Payload, &p); err != nil {
+		return fmt.Errorf("handle human_feedback: %w", err)
+	}
+
+	if p.CycleID == "" {
+		return fmt.Errorf("handle human_feedback: missing CycleID")
+	}
+
+	// 1. Create HumanFeedback node
+	fbNodeID := HumanFeedbackNodeID(src)
+	if _, err := g.UpsertNode(fbNodeID, "HumanFeedback", graph.Properties{
+		"cycleId":           p.CycleID,
+		"feedbackType":      p.FeedbackType,
+		"comment":           p.Comment,
+		"impact":            p.Impact,
+		"relevance":         p.Relevance,
+		"valueContribution": p.ValueContribution,
+		"reviewerID":        p.ReviewerID,
+		"senderID":          env.SenderID,
+	}); err != nil {
+		return fmt.Errorf("handle human_feedback: upsert feedback node: %w", err)
+	}
+
+	// 2. Link cycle → feedback
+	cycleNodeID := graph.NodeID(p.CycleID)
+	edgeID := DeterministicEdgeID("HAS_FEEDBACK", cycleNodeID, fbNodeID)
+	if _, err := g.UpsertEdge(edgeID, "HAS_FEEDBACK", cycleNodeID, fbNodeID, nil); err != nil {
+		return fmt.Errorf("handle human_feedback: upsert feedback edge: %w", err)
+	}
+
+	// 3. Update cycle status to RECEIVED
+	if _, err := g.UpsertNode(cycleNodeID, "ReflectionCycle", graph.Properties{
+		"humanFeedbackStatus": "RECEIVED",
+	}); err != nil {
+		return fmt.Errorf("handle human_feedback: update cycle status: %w", err)
+	}
+
+	// 4. Apply score overrides to linked LearningSignal edges
+	applyScoreOverrides(g, cycleNodeID, p.Impact, p.Relevance, p.ValueContribution)
+
+	return nil
+}
+
+// applyScoreOverrides updates LINKS_TO edge properties for signals linked to a cycle.
+func applyScoreOverrides(g *graph.Graph, cycleID graph.NodeID, impact, relevance, valueContribution float64) {
+	edges, err := g.Neighbors(cycleID)
+	if err != nil {
+		return
+	}
+	for _, edge := range edges {
+		if edge.Label != "LINKS_TO" || edge.ToID != cycleID {
+			continue
+		}
+		// Only update non-zero overrides
+		props := graph.Properties{}
+		if impact != 0 {
+			props["impact"] = impact
+		}
+		if relevance != 0 {
+			props["relevance"] = relevance
+		}
+		if valueContribution != 0 {
+			props["valueContribution"] = valueContribution
+		}
+		if len(props) > 0 {
+			g.UpsertEdge(edge.ID, edge.Label, edge.FromID, edge.ToID, props) //nolint:errcheck,gosec // best-effort
+		}
+	}
 }
 
 // HandleOrchestrator creates DELEGATES_TO and REPORTS_TO edges between agents.

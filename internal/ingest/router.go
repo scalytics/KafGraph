@@ -46,6 +46,7 @@ func NewRouter() *Router {
 	r.handlers[TypeAudit] = HandleAudit
 	r.handlers[TypeRoster] = HandleRoster
 	r.handlers[TypeOrchestrator] = HandleOrchestrator
+	r.handlers[TypeHumanFeedback] = HandleHumanFeedback
 	return r
 }
 

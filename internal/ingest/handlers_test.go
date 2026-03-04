@@ -22,6 +22,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/scalytics/kafgraph/internal/graph"
 )
 
 var testSrc = SourceOffset{Topic: "group.chat", Partition: 0, Offset: 1}
@@ -325,4 +327,194 @@ func TestHandleRequestIdempotent(t *testing.T) {
 	nodes, err := g.NodesByLabel("Conversation")
 	require.NoError(t, err)
 	assert.Len(t, nodes, 1)
+}
+
+// --- Human feedback handler tests ---
+
+func TestHandleHumanFeedback(t *testing.T) {
+	g := newTestGraph()
+	defer g.Close()
+
+	// Create a cycle first
+	g.UpsertNode("n:ReflectionCycle:c1", "ReflectionCycle", graph.Properties{
+		"status":              "COMPLETED",
+		"humanFeedbackStatus": "REQUESTED",
+	})
+
+	src := SourceOffset{Topic: "feedback", Partition: 0, Offset: 1}
+	env := makeEnvelope(t, TypeHumanFeedback, "reviewer-1", "corr-1", HumanFeedbackPayload{
+		CycleID:      "n:ReflectionCycle:c1",
+		FeedbackType: "positive",
+		Comment:      "great insights",
+		Impact:       0.9,
+		ReviewerID:   "reviewer-1",
+	})
+
+	err := HandleHumanFeedback(context.Background(), g, env, src)
+	require.NoError(t, err)
+
+	// Verify HumanFeedback node
+	fb, err := g.GetNode(HumanFeedbackNodeID(src))
+	require.NoError(t, err)
+	assert.Equal(t, "HumanFeedback", fb.Label)
+	assert.Equal(t, "positive", fb.Properties["feedbackType"])
+	assert.Equal(t, "great insights", fb.Properties["comment"])
+
+	// Verify cycle status updated to RECEIVED
+	cycle, err := g.GetNode("n:ReflectionCycle:c1")
+	require.NoError(t, err)
+	assert.Equal(t, "RECEIVED", cycle.Properties["humanFeedbackStatus"])
+}
+
+func TestHandleHumanFeedbackInvalidJSON(t *testing.T) {
+	g := newTestGraph()
+	defer g.Close()
+
+	env := &GroupEnvelope{Type: TypeHumanFeedback, SenderID: "s", Payload: json.RawMessage(`bad`)}
+	err := HandleHumanFeedback(context.Background(), g, env, testSrc)
+	assert.Error(t, err)
+}
+
+func TestHandleHumanFeedbackMissingCycleID(t *testing.T) {
+	g := newTestGraph()
+	defer g.Close()
+
+	env := makeEnvelope(t, TypeHumanFeedback, "reviewer-1", "corr-1", HumanFeedbackPayload{
+		FeedbackType: "positive",
+	})
+
+	err := HandleHumanFeedback(context.Background(), g, env, testSrc)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "missing CycleID")
+}
+
+func TestHandleHumanFeedbackScoreOverrides(t *testing.T) {
+	g := newTestGraph()
+	defer g.Close()
+
+	// Create cycle and signal
+	g.UpsertNode("n:ReflectionCycle:c1", "ReflectionCycle", graph.Properties{
+		"status":              "COMPLETED",
+		"humanFeedbackStatus": "REQUESTED",
+	})
+	g.UpsertNode("n:LearningSignal:s1", "LearningSignal", graph.Properties{
+		"summary": "test signal",
+	})
+	g.UpsertEdge("e:LINKS_TO:s1c1", "LINKS_TO", "n:LearningSignal:s1", "n:ReflectionCycle:c1", graph.Properties{
+		"impact":    0.5,
+		"relevance": 0.5,
+	})
+
+	src := SourceOffset{Topic: "feedback", Partition: 0, Offset: 2}
+	env := makeEnvelope(t, TypeHumanFeedback, "reviewer-1", "corr-1", HumanFeedbackPayload{
+		CycleID:           "n:ReflectionCycle:c1",
+		FeedbackType:      "positive",
+		Impact:            0.9,
+		Relevance:         0.8,
+		ValueContribution: 0.7,
+	})
+
+	err := HandleHumanFeedback(context.Background(), g, env, src)
+	require.NoError(t, err)
+
+	// Verify edge properties were overridden
+	edge, err := g.GetEdge("e:LINKS_TO:s1c1")
+	require.NoError(t, err)
+	assert.Equal(t, 0.9, edge.Properties["impact"])
+	assert.Equal(t, 0.8, edge.Properties["relevance"])
+	assert.Equal(t, 0.7, edge.Properties["valueContribution"])
+}
+
+func TestHandleHumanFeedbackPartialScoreOverrides(t *testing.T) {
+	g := newTestGraph()
+	defer g.Close()
+
+	g.UpsertNode("n:ReflectionCycle:c1", "ReflectionCycle", graph.Properties{
+		"status":              "COMPLETED",
+		"humanFeedbackStatus": "REQUESTED",
+	})
+	g.UpsertNode("n:LearningSignal:s1", "LearningSignal", graph.Properties{})
+	g.UpsertEdge("e:LINKS_TO:s1c1", "LINKS_TO", "n:LearningSignal:s1", "n:ReflectionCycle:c1", graph.Properties{
+		"impact":    0.5,
+		"relevance": 0.5,
+	})
+
+	src := SourceOffset{Topic: "feedback", Partition: 0, Offset: 3}
+	env := makeEnvelope(t, TypeHumanFeedback, "reviewer-1", "corr-1", HumanFeedbackPayload{
+		CycleID: "n:ReflectionCycle:c1",
+		Impact:  0.9, // only override impact, leave relevance and vc as 0
+	})
+
+	err := HandleHumanFeedback(context.Background(), g, env, src)
+	require.NoError(t, err)
+
+	edge, err := g.GetEdge("e:LINKS_TO:s1c1")
+	require.NoError(t, err)
+	assert.Equal(t, 0.9, edge.Properties["impact"])
+	// relevance should still be 0.5 (not overridden since value was 0)
+	assert.Equal(t, 0.5, edge.Properties["relevance"])
+}
+
+func TestHandleHumanFeedbackIdempotent(t *testing.T) {
+	g := newTestGraph()
+	defer g.Close()
+
+	g.UpsertNode("n:ReflectionCycle:c1", "ReflectionCycle", graph.Properties{
+		"status":              "COMPLETED",
+		"humanFeedbackStatus": "REQUESTED",
+	})
+
+	src := SourceOffset{Topic: "feedback", Partition: 0, Offset: 4}
+	env := makeEnvelope(t, TypeHumanFeedback, "reviewer-1", "corr-1", HumanFeedbackPayload{
+		CycleID:      "n:ReflectionCycle:c1",
+		FeedbackType: "positive",
+	})
+
+	// Process twice (idempotent due to deterministic ID)
+	err := HandleHumanFeedback(context.Background(), g, env, src)
+	require.NoError(t, err)
+	err = HandleHumanFeedback(context.Background(), g, env, src)
+	require.NoError(t, err)
+
+	// Should still have exactly one feedback node
+	nodes, err := g.NodesByLabel("HumanFeedback")
+	require.NoError(t, err)
+	assert.Len(t, nodes, 1)
+}
+
+func TestHandleHumanFeedbackRouterRegistered(t *testing.T) {
+	r := NewRouter()
+	g := newTestGraph()
+	defer g.Close()
+
+	g.UpsertNode("n:ReflectionCycle:c1", "ReflectionCycle", graph.Properties{
+		"status":              "COMPLETED",
+		"humanFeedbackStatus": "REQUESTED",
+	})
+
+	payload, _ := json.Marshal(HumanFeedbackPayload{
+		CycleID:      "n:ReflectionCycle:c1",
+		FeedbackType: "positive",
+	})
+
+	env := &GroupEnvelope{
+		Type:     TypeHumanFeedback,
+		SenderID: "reviewer-1",
+		Payload:  payload,
+	}
+
+	src := SourceOffset{Topic: "feedback", Partition: 0, Offset: 5}
+	err := r.Route(context.Background(), g, env, src)
+	require.NoError(t, err)
+
+	// Verify feedback was created via router
+	fb, err := g.GetNode(HumanFeedbackNodeID(src))
+	require.NoError(t, err)
+	assert.Equal(t, "HumanFeedback", fb.Label)
+}
+
+func TestHumanFeedbackNodeID(t *testing.T) {
+	src := SourceOffset{Topic: "feedback.topic", Partition: 2, Offset: 42}
+	id := HumanFeedbackNodeID(src)
+	assert.Equal(t, graph.NodeID("n:HumanFeedback:feedback.topic:2:42"), id)
 }

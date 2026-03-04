@@ -18,9 +18,11 @@ past interactions.
 - **Agent Brain** — persistent, self-owned knowledge system accessible via tool calls
 - **Kafka-native** — all data flows through Kafka topics; co-located with KafScale
 - **Property Graph** — labeled nodes and directed edges with arbitrary properties
+- **Query Engine** — OpenCypher subset with full-text search and vector similarity
 - **Reflection Engine** — daily/weekly/monthly reflection cycles with learning signals
 - **Human Feedback** — feedback loops for positive/negative impact scoring
 - **Brain Tool API** — seven brain tools callable via HTTP or KafClaw skill routing
+- **Bolt v4 Protocol** — Neo4j-compatible binary protocol for driver connectivity
 - **Per-agent + Distributed** — same binary runs embedded or as a cluster shard
 
 ## Quick Start
@@ -39,7 +41,9 @@ make test
 make dev-run
 ```
 
-See [Getting Started](getting-started.md) for detailed setup instructions.
+See [Getting Started](getting-started.md) for detailed setup instructions, or
+run `make demo-seed` to instantly explore a pre-populated graph with reflection
+data. See [Demo Data](demo-data.md) for the full scenario.
 
 ## Architecture
 
@@ -62,7 +66,7 @@ See [Architecture](architecture.md) for the full design.
 | `brain_capture` | Write insights and decisions into the brain |
 | `brain_recent` | Browse recent activity |
 | `brain_patterns` | Surface recurring themes and connections |
-| `brain_reflect` | Trigger on-demand reflection cycle |
+| `brain_reflect` | Trigger reflection cycle with deterministic IDs and heuristic scoring |
 | `brain_feedback` | Submit human feedback on reflection cycles |
 
 See [Brain Tool API](brain-tool-api.md) for schemas and usage.

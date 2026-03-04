@@ -70,6 +70,18 @@ Edit `.env` to match your local setup. See [Configuration](configuration.md) for
 ./bin/kafgraph
 ```
 
+## Demo Data
+
+Seed the graph with a realistic multi-agent conversation (including reflection
+cycles and human feedback) and start browsing immediately:
+
+```bash
+make demo-seed
+# → Opens http://localhost:7474 with pre-populated graph
+```
+
+See [Demo Data](demo-data.md) for the full scenario description.
+
 ## Development Workflow
 
 ```bash
