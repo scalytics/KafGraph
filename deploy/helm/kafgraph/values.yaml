@@ -1,0 +1,48 @@
+image:
+  repository: ghcr.io/scalytics/kafgraph
+  tag: latest
+  pullPolicy: IfNotPresent
+
+replicaCount: 1
+
+service:
+  type: ClusterIP
+  httpPort: 7474
+  boltPort: 7687
+  metricsPort: 9090
+
+# KafGraph env — override for your deployment.
+config:
+  kafkaBrokers: "kafscale-broker:9092"
+  s3:
+    endpoint: "minio:9000"
+    bucket: "kafgraph"
+    accessKey: "scalytics"
+    secretKey: "scalytics"
+  logLevel: "info"
+
+persistence:
+  enabled: true
+  storageClass: ""
+  size: 5Gi
+
+resources:
+  limits: { cpu: 1000m, memory: 1Gi }
+  requests: { cpu: 200m, memory: 256Mi }
+
+probes:
+  liveness:
+    httpGet: { path: /healthz, port: 7474 }
+    initialDelaySeconds: 30
+    periodSeconds: 20
+  readiness:
+    httpGet: { path: /healthz, port: 7474 }
+    initialDelaySeconds: 10
+    periodSeconds: 10
+
+serviceAccount:
+  create: true
+  name: ""
+
+labels:
+  app.kubernetes.io/part-of: ops-foundation

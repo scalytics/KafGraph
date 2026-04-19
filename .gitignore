@@ -6,7 +6,7 @@
 *.dylib
 bin/
 dist/
-kafgraph
+/kafgraph
 demo-seed
 __debug_bin*
 

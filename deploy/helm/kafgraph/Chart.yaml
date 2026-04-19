@@ -1,0 +1,16 @@
+apiVersion: v2
+name: kafgraph
+description: >
+  KafGraph — distributed agent knowledge graph and reflection engine. BadgerDB +
+  Bleve + Neo4j Bolt v4 protocol. Deployed as a StatefulSet with persistent storage.
+type: application
+version: 0.1.0
+appVersion: "1.0.0"
+maintainers:
+  - name: Scalytics Platform Team
+keywords:
+  - kafgraph
+  - knowledge-graph
+  - neo4j
+  - bolt
+  - scalytics
