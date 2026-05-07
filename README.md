@@ -2,166 +2,295 @@
 
 # KafGraph
 
-**KafGraph becomes the distributed shared brain of collaborating agents.**
+**The distributed shared brain of collaborating agents.**
 
-A self-owned, persistent, agent-accessible knowledge system built as a distributed
-graph database in Go.
+A self-owned, persistent, agent-accessible knowledge graph written in Go.
+Apache 2.0. Open beta.
+
+[![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
+[![Go](https://img.shields.io/badge/Go-1.25-00ADD8.svg)](go.mod)
+[![Status](https://img.shields.io/badge/status-open%20beta-1D9E75.svg)](#project-status)
 
 ---
 
-## What Is KafGraph?
+## What KafGraph is
 
 KafGraph is the memory layer for AI agent teams. It ingests every conversation,
-decision, and artifact that flows through a [KafClaw](https://github.com/kamir/KafClaw)
-agent group, structures it as a queryable knowledge graph, and exposes it back to
-agents through tool calls — so no agent ever starts from zero.
+decision, and artifact that flows through your agent group, structures it as a
+queryable property graph, and exposes it back to agents through tool calls. No
+agent ever starts from zero.
 
 ```
-Agent conversations → Kafka topics → KafScale Processor → KafGraph (BadgerDB)
-                                                              │
-                                      ┌───────────────────────┤
-                                      │                       │
-                                 Brain Tool API          Cypher / Bolt
-                                 (agent access)          (tooling access)
+Agent conversations  →  Kafka topics  →  KafScale processor  →  KafGraph (BadgerDB)
+                                                                       │
+                                                  ┌────────────────────┤
+                                                  │                    │
+                                            Brain Tool API      Cypher / Bolt v4
+                                            (agent access)      (tooling access)
 ```
 
-## Key Capabilities
+Two deployment modes from one binary:
 
-- **Agent Brain**: persistent, searchable knowledge graph per agent and per team —
-  accessible via `brain_search`, `brain_recall`, `brain_capture` tool calls
-- **KafScale Processor**: reads directly from S3 segments (MinIO) using the 5-layer
-  processor stack — no broker overload
-- **Reflection Service**: daily, weekly, and monthly reflection cycles that score
-  conversations by impact, relevance, and value contribution
-- **Human Feedback Loop**: tracks both positive and negative impact of agent actions,
-  with configurable routing to team leader and expert reviewers
-- **Semantic Search**: vector embeddings (HNSW) for meaning-based queries across the
-  entire knowledge graph
-- **Full-Text Search**: bleve-powered text search on message content, learning signals,
-  and shared memory
-- **OpenCypher / Bolt**: Neo4j-compatible query interface for tooling and dashboards
-- **Two Modes**: per-agent embedded (local brain) or distributed cluster (team brain)
+* **Embedded.** A local brain for one agent. BadgerDB on disk, Brain Tool API on
+  localhost. Useful for per-agent personalization, coding agents on a developer
+  laptop, or air-gapped single-agent workloads.
+* **Distributed.** A shared brain for an agent team. Gossip-based cluster
+  membership via `hashicorp/memberlist`, agentID partitioning via FNV-1a,
+  cross-partition fan-out RPC. The mode no other agent memory system ships.
 
-## Why "Distributed Shared Brain"?
+## Why "shared brain"
 
-That phrase captures both deployment modes in one sentence:
+Every other agent memory system on the market (Mem0, Zep / Graphiti, Cognee,
+Letta, LangMem, Claude memory, ChatGPT memory) is built around a single user or
+a single agent. Once you scale to a team of collaborating agents (researcher,
+coder, reviewer, orchestrator), the memory layer becomes the bottleneck:
 
-- **Per-agent mode** = each agent has its own local brain (embedded BadgerDB + Brain
-  Tool API on localhost)
-- **Distributed mode** = all agents in a KafClaw group share a single brain across the
-  cluster, partitioned by agentID but queryable cross-agent
+* Different agents operate on different versions of reality.
+* Downstream agents act on assumptions upstream peers have already invalidated.
+* Each session starts from zero. Yesterday's lessons stay locked inside one
+  agent's context window.
 
-### How KafGraph Differs from Platform Memory
+KafGraph is a single graph that all agents in the team read and write through
+the same seven brain tools. A researcher's findings enrich the coder's context.
+A reviewer's feedback flows back into the team's reflection scores. The brain
+compounds.
 
-- **Claude memory / ChatGPT memory** = private, siloed, vendor-locked
-- **KafGraph** = shared (team-wide), distributed (scales with the cluster), and
-  self-owned (no SaaS)
+## Features
 
-### The Compounding Value of a Shared Brain
+| Capability | Status |
+|------------|--------|
+| Property graph storage on BadgerDB (LSM, ACID) | Shipping |
+| OpenCypher subset (MATCH, WHERE, RETURN, CREATE, MERGE, SET, DELETE, CALL, YIELD) | Shipping |
+| Bolt v4 wire protocol (PackStream, chunked transport) | Shipping |
+| HTTP REST API for graph CRUD and tool execution | Shipping |
+| Brute-force vector search (cosine similarity) | Shipping |
+| HNSW vector index | Planned (hardening phase) |
+| `bleve` full-text search | Shipping |
+| Seven brain tools (`brain_search`, `brain_recall`, `brain_capture`, `brain_recent`, `brain_patterns`, `brain_reflect`, `brain_feedback`) | Shipping |
+| Reflection engine (daily, weekly, monthly cycles with scoring) | Shipping |
+| Human feedback loop (state machine, score overrides) | Shipping |
+| Distributed cluster (gossip, agentID partitioning, fan-out RPC) | Shipping |
+| Embedded management UI (graph browser, reflection dashboard) | Shipping |
+| TLS, encryption at rest, OpenTelemetry, load tests | In progress |
 
-A private brain only compounds from one agent's experience. A **shared** brain
-compounds from the entire team's experience — agent-researcher's findings enrich
-agent-coder's context, agent-reviewer's feedback improves everyone's reflection
-scores.
+## The brain tool API
 
-The brain compounds through three loops:
-1. **Automatic ingestion** — every conversation becomes a graph node with embeddings
-2. **Reflection cycles** — the brain learns what mattered (daily/weekly/monthly)
-3. **Human feedback** — humans confirm what had real positive or negative impact
-
-### The Three Layers
-
-The story flows across three projects:
-
-| Layer | Project | Role |
-|-------|---------|------|
-| **Communication** | KafClaw | Agent groups, skill routing, orchestration — the conversations |
-| **Infrastructure** | KafScale | Kafka-compatible broker, S3 storage, processor SDK — the platform |
-| **Brain** | KafGraph | The place where collective experience becomes searchable, reflectable knowledge |
-
-## Architecture
-
-KafGraph runs as a **KafScale Processor** co-located with KafScale broker nodes.
-It consumes from KafClaw group topics (`group.<name>.requests`, `.responses`,
-`.skill.*`, `.memory.shared`, etc.) by reading S3 segments directly — no broker
-round-trip.
-
-| Component | Technology |
-|-----------|-----------|
-| Storage engine | BadgerDB (pure Go, LSM-tree, ACID) |
-| Segment processing | KafScale 2.7.0 Processor SDK |
-| Object storage | MinIO (S3-compatible) |
-| Vector index | HNSW (approximate nearest-neighbour) |
-| Full-text index | bleve (pure Go) |
-| Query language | OpenCypher subset |
-| Wire protocol | Bolt v4.4 |
-| Cluster membership | hashicorp/memberlist (gossip) |
-| Configuration | YAML + env-var overrides (viper) |
-
-## Brain Tool API
-
-Agents interact with the brain through **tool calls** — standard JSON-schema
-functions callable from any LLM agent runtime. Two access paths:
-
-| Path | Transport | Use Case |
-|------|-----------|----------|
-| Direct HTTP | `POST /api/v1/tools/{toolName}` | Co-located / embedded mode |
-| KafClaw skill | `group.<name>.skill.kafgraph_brain.*` | Distributed mode (auto-discovered via roster) |
-
-**Available tools:**
+Agents talk to KafGraph through standard JSON-schema tool calls. Two transports:
+direct HTTP for embedded mode, or KafClaw skill routing for distributed mode
+(auto-discovered via the group roster).
 
 | Tool | Purpose |
 |------|---------|
-| `brain_search` | Semantic search — find nodes by meaning, not keywords |
-| `brain_recall` | Load accumulated context at session start (no more zero-start) |
-| `brain_capture` | Write insights, decisions, observations into the brain |
-| `brain_recent` | Browse recent activity within a time window |
-| `brain_patterns` | Surface recurring themes and connections |
-| `brain_reflect` | Trigger on-demand reflection and get results inline |
-| `brain_feedback` | Submit human feedback on reflection cycles |
+| `brain_search` | Semantic search across the graph. Vector similarity over Message, SharedMemory, LearningSignal, Conversation nodes. |
+| `brain_recall` | Load accumulated context at session start. Edge traversal across conversations, decisions, feedback. |
+| `brain_capture` | Write insights into the brain. Creates `LearningSignal` nodes auto-linked to the agent. |
+| `brain_recent` | Time-windowed activity browsing with type and agent filtering. |
+| `brain_patterns` | Recurring themes via tag aggregation across `LearningSignal` nodes. |
+| `brain_reflect` | Trigger a reflection cycle on demand. |
+| `brain_feedback` | Submit human feedback on a reflection cycle. Score overrides flow back to `LearningSignal` nodes. |
 
-## KafClaw Integration
+Each tool ships with its own `SKILL.md` manifest under `skills/`. The HTTP
+contract is in `docs/api.md`.
+
+## Quick start
+
+### Prerequisites
+
+* Go 1.25 or later
+* Docker and Docker Compose (for integration tests and the dev environment)
+
+### Build and run
+
+```bash
+git clone https://github.com/scalytics/KafGraph.git
+cd KafGraph
+
+# Set up dev environment (formats, linters, hooks)
+make dev-setup
+
+# Build
+make build
+
+# Run tests
+make test
+
+# Start MinIO + Kafka + KafGraph
+make docker-up
+
+# Run KafGraph locally against the dev environment
+make dev-run
+```
+
+### Try it with demo data
+
+The demo seeds a realistic multi-agent conversation, including reflection
+cycles and human feedback, so you can browse a populated graph immediately:
+
+```bash
+make demo-seed
+# → Management UI at http://localhost:7474
+# → Bolt endpoint at bolt://localhost:7687
+```
+
+### Configuration
+
+KafGraph reads YAML and env-var overrides via `viper`. The defaults in
+`.env.example`:
+
+```env
+KAFGRAPH_HOST=0.0.0.0
+KAFGRAPH_PORT=7474
+KAFGRAPH_BOLT_PORT=7687
+KAFGRAPH_DATA_DIR=./data
+KAFGRAPH_KAFKA_BROKERS=localhost:9092
+KAFGRAPH_S3_ENDPOINT=localhost:9000
+KAFGRAPH_EMBEDDING_ENDPOINT=http://localhost:11434
+KAFGRAPH_EMBEDDING_MODEL=nomic-embed-text
+```
+
+Full reference in `docs/configuration.md`.
+
+## Architecture
+
+KafGraph runs as a KafScale processor, co-located with KafScale broker nodes.
+It consumes KafClaw group topics by reading S3 segments directly. No broker
+round-trip, no replay storms.
+
+| Component | Implementation |
+|-----------|----------------|
+| Storage engine | BadgerDB v4 (pure Go, LSM, ACID) |
+| Segment processing | KafScale processor SDK |
+| Object storage | MinIO or any S3-compatible target |
+| Vector search | Brute-force cosine similarity (HNSW planned) |
+| Full-text index | `bleve` |
+| Query language | OpenCypher subset |
+| Wire protocol | Bolt v4 (PackStream) |
+| Cluster membership | `hashicorp/memberlist` (gossip) |
+| Partitioning | FNV-1a hashing on agentID |
+| Configuration | YAML + env-var overrides via `viper` |
+
+### KafClaw integration
 
 KafGraph consumes the full KafClaw group topic hierarchy:
 
 ```
-group.<group_name>.announce              → Agent nodes
-group.<group_name>.requests / responses  → Conversation + Message nodes
-group.<group_name>.skill.*.requests/responses → Skill-specific conversations
-group.<group_name>.memory.shared         → SharedMemory nodes
-group.<group_name>.observe.audit         → AuditEvent nodes
-group.<group_name>.control.roster        → Dynamic skill topic discovery
-group.<group_name>.orchestrator          → Agent hierarchy edges
+group.<group_name>.announce                     →  Agent nodes
+group.<group_name>.requests / responses         →  Conversation + Message nodes
+group.<group_name>.skill.*.requests / responses →  Skill-specific conversations
+group.<group_name>.memory.shared                →  SharedMemory nodes
+group.<group_name>.observe.audit                →  AuditEvent nodes
+group.<group_name>.control.roster               →  Dynamic skill topic discovery
+group.<group_name>.orchestrator                 →  Agent hierarchy edges
 ```
 
-See [SPEC/kafclaw-topic-reference.md](SPEC/kafclaw-topic-reference.md) for the
-full topic model and wire format.
+Wire format and topic model: `SPEC/kafclaw-topic-reference.md`.
 
-## Project Status
+## What KafGraph is not
 
-KafGraph is in the **specification phase**. No source code yet.
+* **Not a general-purpose graph database.** KafGraph implements a deliberate
+  OpenCypher subset focused on agent memory access patterns. If you need full
+  Cypher with stored procedures and a query planner that competes with Neo4j
+  Enterprise, use Neo4j or Memgraph.
+* **Not a pure vector database.** Vector search exists in KafGraph because
+  agents need it for semantic recall, not because we compete with Pinecone or
+  Weaviate. If your workload is "millions of embeddings, no graph," use a real
+  vector DB.
+* **Not a drop-in Neo4j replacement.** We speak Bolt v4 and a Cypher subset so
+  existing Bolt clients and dashboards work for inspection. We are not a 1-to-1
+  swap for an existing Neo4j deployment with custom procedures, plugins, or
+  APOC dependencies.
+* **Not GA software, today.** Open beta means feature-complete on the core
+  scope but enterprise hardening still in flight. Use it for evaluations,
+  design partnerships, and non-production agent work. Talk to us before you
+  commit a regulated production workload.
+
+## Where KafGraph fits in the stack
+
+KafGraph is one of four open-source layers from Scalytics that compose into a
+complete agent platform. Each is independently useful.
+
+| Layer | Project | Role |
+|-------|---------|------|
+| Transport | [KafScale](https://github.com/scalytics/kafscale) | S3-native, Kafka-compatible streaming. Stateless brokers, infinite retention. |
+| Runtime | [KafClaw](https://github.com/scalytics/KafClaw) | Agent groups, skill routing, policy mesh, tool registry, shared memory topics. |
+| **Brain** | **KafGraph** | **The shared brain. Property graph, reflection engine, Brain Tool API.** |
+| Observability | [kafSIEM](https://github.com/scalytics/kafSIEM) | Streaming threat detection and audit on the same Kafka backbone. |
+
+## Project status
+
+Open beta. All nine layers run end-to-end with extensive test coverage. The
+remaining work is enterprise hardening.
+
+| Phase | Name | Status |
+|-------|------|--------|
+| 0 | Foundation (BadgerDB, graph API, Bolt handshake, config) | Complete |
+| 1 | Running Server (HTTP REST, Bolt accept loop, 84.9% coverage) | Complete |
+| 2 | Processor (KafScale 5-layer, GroupEnvelope decoder, 11 envelope types) | Complete |
+| 3 | Query Engine (OpenCypher parser, indexes, full-text, vector, Bolt message loop) | Complete |
+| 4 | Agent Brain (7 brain tools, 88.8% coverage) | Complete |
+| 5 | Reflection (daily / weekly / monthly cycles, scoring, `LearningSignal` nodes) | Complete |
+| 6 | Feedback (human feedback state machine, score overrides) | Complete |
+| 7 | Distribution (gossip, FNV-1a partitioning, cross-partition fan-out) | Complete |
+| 8 | Management UI (Cytoscape.js, ECharts, embedded, air-gapped) | Complete |
+| 9 | Hardening (TLS, encryption at rest, OTel, Helm, load tests) | In progress |
+
+Living plan: `SPEC/PLAN.md`.
+
+## Specifications and design notes
+
+The original spec documents are kept in the repository for traceability:
 
 | Document | Description |
-|----------|------------|
-| [SPEC/initial-idea.md](SPEC/initial-idea.md) | Original vision and open questions (all resolved) |
-| [SPEC/requirements.md](SPEC/requirements.md) | Functional, non-functional, and integration requirements |
-| [SPEC/solution-design.md](SPEC/solution-design.md) | Architecture, component design, phased delivery plan |
-| [SPEC/kafclaw-topic-reference.md](SPEC/kafclaw-topic-reference.md) | KafClaw topic naming, wire format, and KafGraph mapping |
-| [SPEC/about-agent-brains.md](SPEC/about-agent-brains.md) | Foundational thinking on agent-readable memory systems |
+|----------|-------------|
+| `SPEC/PLAN.md` | Living phase plan, updated after each milestone |
+| `SPEC/initial-idea.md` | Original vision and resolved open questions |
+| `SPEC/requirements.md` | Functional, non-functional, and integration requirements |
+| `SPEC/solution-design.md` | Architecture and component design |
+| `SPEC/kafclaw-topic-reference.md` | KafClaw topic naming, wire format, and KafGraph mapping |
+| `SPEC/about-agent-brains.md` | Foundational thinking on agent-readable memory systems |
 
-## Phased Delivery
+## Development
 
-| Phase | Milestone |
-|-------|-----------|
-| 0 — Foundation | BadgerDB, graph API, Bolt handshake, config |
-| 1 — Processor | KafScale 5-layer processor, KafClaw GroupEnvelope ingestion |
-| 2 — Query | OpenCypher parser, vector index (HNSW), full-text index (bleve) |
-| 3 — Agent Brain | Brain Tool API, KafClaw skill registration, context loading, embedding integration |
-| 4 — Reflection | Scheduler, isolated historic iterator, scoring, LearningSignal nodes |
-| 5 — Feedback | Human feedback loop, positive/negative impact, team leader + expert routing |
-| 6 — Distribution | Cluster mode, gossip, cross-partition routing, brain-captures sync |
-| 7 — Hardening | TLS, encryption at rest, OTel tracing, Helm chart, load tests |
+```bash
+make help            # List all targets
+make test-unit       # Unit tests only
+make test-e2e        # End-to-end tests (in-process, temp BadgerDB)
+make test-integration # Integration tests (docker-compose)
+make test-race       # Unit + E2E with race detector
+make cover-check     # Fail if coverage drops below the gate
+make lint            # golangci-lint
+make sec             # gosec + govulncheck
+make docker-up       # Start MinIO + Kafka + KafGraph dev environment
+make demo-seed       # Seed demo graph and open the UI
+```
+
+Coverage gates run on CI. Race detector runs on every PR. The `Makefile` has
+the full target list.
+
+## Contributing
+
+Issues and pull requests welcome. No CLA. The code style is enforced via
+`golangci-lint` (`.golangci.yml`) and `gofmt`. Conventional commits preferred.
+
+For substantial changes, open an issue first so we can align on direction.
+KafGraph follows the design discipline in `CLAUDE.md`.
+
+## Built by
+
+KafGraph is built and maintained by [Scalytics](https://www.scalytics.io),
+founded by the original creators of [Apache Wayang](https://wayang.apache.org).
+The same engineering team maintains [KafScale](https://github.com/scalytics/kafscale)
+and [KafClaw](https://github.com/scalytics/KafClaw). The release discipline that
+ships Wayang code through the Apache Software Foundation process applies here:
+race detection, coverage gates, security scanning, and reproducible builds.
 
 ## License
 
-Apache 2.0 — see [LICENSE](LICENSE).
+Apache 2.0. See [LICENSE](LICENSE).
+
+## Links
+
+* Product page: <https://www.scalytics.io/en-gb/kafgraph>
+* Documentation: `docs/`
+* Issues: <https://github.com/scalytics/KafGraph/issues>
+* Scalytics: <https://www.scalytics.io>
