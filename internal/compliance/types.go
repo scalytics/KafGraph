@@ -117,27 +117,27 @@ type ScanRequest struct {
 
 // ScanResult is the aggregated result of a compliance scan.
 type ScanResult struct {
-	ScanID      string       `json:"scanId"`
-	Framework   Framework    `json:"framework"`
-	TriggeredBy string       `json:"triggeredBy"`
-	StartedAt   time.Time    `json:"startedAt"`
-	CompletedAt time.Time    `json:"completedAt"`
-	PassCount   int          `json:"passCount"`
-	FailCount   int          `json:"failCount"`
-	WarningCount int         `json:"warningCount"`
-	NACount     int          `json:"naCount"`
-	Score       float64      `json:"score"`
-	Evaluations []RuleResult `json:"evaluations"`
+	ScanID       string       `json:"scanId"`
+	Framework    Framework    `json:"framework"`
+	TriggeredBy  string       `json:"triggeredBy"`
+	StartedAt    time.Time    `json:"startedAt"`
+	CompletedAt  time.Time    `json:"completedAt"`
+	PassCount    int          `json:"passCount"`
+	FailCount    int          `json:"failCount"`
+	WarningCount int          `json:"warningCount"`
+	NACount      int          `json:"naCount"`
+	Score        float64      `json:"score"`
+	Evaluations  []RuleResult `json:"evaluations"`
 }
 
 // ScoreSummary holds per-framework compliance scores.
 type ScoreSummary struct {
-	Framework   Framework `json:"framework"`
-	Score       float64   `json:"score"`
-	PassCount   int       `json:"passCount"`
-	FailCount   int       `json:"failCount"`
-	TotalRules  int       `json:"totalRules"`
-	LastScanAt  string    `json:"lastScanAt,omitempty"`
+	Framework  Framework `json:"framework"`
+	Score      float64   `json:"score"`
+	PassCount  int       `json:"passCount"`
+	FailCount  int       `json:"failCount"`
+	TotalRules int       `json:"totalRules"`
+	LastScanAt string    `json:"lastScanAt,omitempty"`
 }
 
 // DashboardData aggregates data for the compliance dashboard.

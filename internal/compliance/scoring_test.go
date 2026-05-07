@@ -52,7 +52,7 @@ func TestCalculateScore_AllFail(t *testing.T) {
 func TestCalculateScore_Mixed(t *testing.T) {
 	results := []RuleResult{
 		{RuleID: "R1", Status: EvalPass, Severity: SeverityCritical}, // weight 3
-		{RuleID: "R2", Status: EvalFail, Severity: SeverityLow},     // weight 0.5
+		{RuleID: "R2", Status: EvalFail, Severity: SeverityLow},      // weight 0.5
 	}
 	// Expected: 3 / 3.5 * 100 = 85.7
 	score := CalculateScore(results)

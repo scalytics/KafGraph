@@ -25,6 +25,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/scalytics/kafgraph/internal/cluster"
+	"github.com/scalytics/kafgraph/internal/compliance"
 	"github.com/scalytics/kafgraph/internal/config"
 	"github.com/scalytics/kafgraph/internal/graph"
 )
@@ -172,4 +174,32 @@ func TestHTTPServerHandler(t *testing.T) {
 	require.NoError(t, err)
 	defer resp.Body.Close()
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
+}
+
+func TestServerOptionsAndReadJSON(t *testing.T) {
+	opts := &serverOpts{}
+	var exec cluster.QueryExecutor
+	var membership *cluster.Membership
+	var partMap *cluster.PartitionMap
+	var compEngine *compliance.Engine
+
+	WithExecutor(exec)(opts)
+	WithBrain(nil)(opts)
+	WithConfig(nil)(opts)
+	WithMembership(membership)(opts)
+	WithPartitionMap(partMap)(opts)
+	WithCompliance(compEngine)(opts)
+
+	assert.Nil(t, opts.exec)
+	assert.Nil(t, opts.brain)
+	assert.Nil(t, opts.cfg)
+	assert.Nil(t, opts.membership)
+	assert.Nil(t, opts.partMap)
+	assert.Nil(t, opts.compEngine)
+
+	req := httptest.NewRequest(http.MethodPost, "/unused", nil)
+	req.Body = nil
+	err := readJSON(req, &map[string]any{})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "empty request body")
 }

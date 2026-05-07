@@ -206,8 +206,8 @@ func SeedComplianceScenario(g *graph.Graph) (*ComplianceResult, error) {
 		deadline    time.Time
 		completed   bool
 	}{
-		{"access", "in_progress", now.Add(20 * 24 * time.Hour), false},         // Active, within SLA
-		{"erasure", "pending", now.Add(-5 * 24 * time.Hour), false},             // Overdue!
+		{"access", "in_progress", now.Add(20 * 24 * time.Hour), false}, // Active, within SLA
+		{"erasure", "pending", now.Add(-5 * 24 * time.Hour), false},    // Overdue!
 	}
 	for _, d := range dsrs {
 		props := graph.Properties{
@@ -372,11 +372,11 @@ func SeedComplianceScenario(g *graph.Graph) (*ComplianceResult, error) {
 		transferType string
 		safeguard    string
 		legalBasis   string
-		fromPA       int    // index into paNodes
-		toPA         int    // -1 if to processor
-		toProc       int    // index into procNodes; -1 if to activity
-		catIdxs      []int  // data category indices
-		lbIdx        int    // legal basis index
+		fromPA       int   // index into paNodes
+		toPA         int   // -1 if to processor
+		toProc       int   // index into procNodes; -1 if to activity
+		catIdxs      []int // data category indices
+		lbIdx        int   // legal basis index
 	}{
 		{
 			name: "Internal Analytics Pipeline", transferType: "internal",
@@ -444,11 +444,11 @@ func SeedComplianceScenario(g *graph.Graph) (*ComplianceResult, error) {
 
 	// Finding 1: remediated
 	finding1, err := g.CreateNode("InspectionFinding", graph.Properties{
-		"title":       "Missing retention period for Employee Health Monitoring",
-		"severity":    "high",
-		"status":      "remediated",
-		"targetDate":  now.Add(30 * 24 * time.Hour).Format(time.RFC3339),
-		"createdAt":   now.Format(time.RFC3339),
+		"title":      "Missing retention period for Employee Health Monitoring",
+		"severity":   "high",
+		"status":     "remediated",
+		"targetDate": now.Add(30 * 24 * time.Hour).Format(time.RFC3339),
+		"createdAt":  now.Format(time.RFC3339),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("create finding 1: %w", err)

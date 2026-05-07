@@ -156,15 +156,15 @@ func (e *Engine) RunScan(ctx context.Context, req ScanRequest) (*ScanResult, err
 func (e *Engine) storeScanResults(result *ScanResult) error {
 	// Create ComplianceScan node.
 	scanNode, err := e.graph.CreateNode("ComplianceScan", graph.Properties{
-		"scanId":      result.ScanID,
-		"framework":   string(result.Framework),
-		"triggeredBy": result.TriggeredBy,
-		"startedAt":   result.StartedAt.Format(time.RFC3339),
-		"completedAt": result.CompletedAt.Format(time.RFC3339),
-		"passCount":   result.PassCount,
-		"failCount":   result.FailCount,
+		"scanId":       result.ScanID,
+		"framework":    string(result.Framework),
+		"triggeredBy":  result.TriggeredBy,
+		"startedAt":    result.StartedAt.Format(time.RFC3339),
+		"completedAt":  result.CompletedAt.Format(time.RFC3339),
+		"passCount":    result.PassCount,
+		"failCount":    result.FailCount,
 		"warningCount": result.WarningCount,
-		"score":       result.Score,
+		"score":        result.Score,
 	})
 	if err != nil {
 		return fmt.Errorf("create scan node: %w", err)

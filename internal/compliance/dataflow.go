@@ -223,12 +223,12 @@ func hasEdgeLabel(edges EdgeList, label string) bool {
 
 type gdprFlow001 struct{}
 
-func (r *gdprFlow001) ID() string        { return "GDPR-FLOW-001" }
+func (r *gdprFlow001) ID() string           { return "GDPR-FLOW-001" }
 func (r *gdprFlow001) Framework() Framework { return FrameworkGDPR }
-func (r *gdprFlow001) Module() string     { return "dataflow" }
-func (r *gdprFlow001) Article() string    { return "Art. 30" }
-func (r *gdprFlow001) Title() string      { return "Data categories must be documented per data flow" }
-func (r *gdprFlow001) Severity() Severity { return SeverityHigh }
+func (r *gdprFlow001) Module() string       { return "dataflow" }
+func (r *gdprFlow001) Article() string      { return "Art. 30" }
+func (r *gdprFlow001) Title() string        { return "Data categories must be documented per data flow" }
+func (r *gdprFlow001) Severity() Severity   { return SeverityHigh }
 
 func (r *gdprFlow001) Evaluate(g GraphQuerier) ([]RuleResult, error) {
 	return checkHasEdge(g, r.ID(), r.Severity(), "DataFlow", "CARRIES")
@@ -238,12 +238,12 @@ func (r *gdprFlow001) Evaluate(g GraphQuerier) ([]RuleResult, error) {
 
 type gdprFlow002 struct{}
 
-func (r *gdprFlow002) ID() string        { return "GDPR-FLOW-002" }
+func (r *gdprFlow002) ID() string           { return "GDPR-FLOW-002" }
 func (r *gdprFlow002) Framework() Framework { return FrameworkGDPR }
-func (r *gdprFlow002) Module() string     { return "dataflow" }
-func (r *gdprFlow002) Article() string    { return "Art. 6" }
-func (r *gdprFlow002) Title() string      { return "Legal basis required for every data flow" }
-func (r *gdprFlow002) Severity() Severity { return SeverityCritical }
+func (r *gdprFlow002) Module() string       { return "dataflow" }
+func (r *gdprFlow002) Article() string      { return "Art. 6" }
+func (r *gdprFlow002) Title() string        { return "Legal basis required for every data flow" }
+func (r *gdprFlow002) Severity() Severity   { return SeverityCritical }
 
 func (r *gdprFlow002) Evaluate(g GraphQuerier) ([]RuleResult, error) {
 	return checkHasEdge(g, r.ID(), r.Severity(), "DataFlow", "GOVERNED_BY")
@@ -253,12 +253,12 @@ func (r *gdprFlow002) Evaluate(g GraphQuerier) ([]RuleResult, error) {
 
 type gdprFlow003 struct{}
 
-func (r *gdprFlow003) ID() string        { return "GDPR-FLOW-003" }
+func (r *gdprFlow003) ID() string           { return "GDPR-FLOW-003" }
 func (r *gdprFlow003) Framework() Framework { return FrameworkGDPR }
-func (r *gdprFlow003) Module() string     { return "dataflow" }
-func (r *gdprFlow003) Article() string    { return "Art. 44-49" }
-func (r *gdprFlow003) Title() string      { return "International transfers require adequate safeguards" }
-func (r *gdprFlow003) Severity() Severity { return SeverityCritical }
+func (r *gdprFlow003) Module() string       { return "dataflow" }
+func (r *gdprFlow003) Article() string      { return "Art. 44-49" }
+func (r *gdprFlow003) Title() string        { return "International transfers require adequate safeguards" }
+func (r *gdprFlow003) Severity() Severity   { return SeverityCritical }
 
 func (r *gdprFlow003) Evaluate(g GraphQuerier) ([]RuleResult, error) {
 	flows, err := g.NodesByLabel("DataFlow")
@@ -285,12 +285,12 @@ func (r *gdprFlow003) Evaluate(g GraphQuerier) ([]RuleResult, error) {
 
 type gdprFlow004 struct{}
 
-func (r *gdprFlow004) ID() string        { return "GDPR-FLOW-004" }
+func (r *gdprFlow004) ID() string           { return "GDPR-FLOW-004" }
 func (r *gdprFlow004) Framework() Framework { return FrameworkGDPR }
-func (r *gdprFlow004) Module() string     { return "dataflow" }
-func (r *gdprFlow004) Article() string    { return "Art. 9" }
-func (r *gdprFlow004) Title() string      { return "Special category data flows require explicit consent" }
-func (r *gdprFlow004) Severity() Severity { return SeverityCritical }
+func (r *gdprFlow004) Module() string       { return "dataflow" }
+func (r *gdprFlow004) Article() string      { return "Art. 9" }
+func (r *gdprFlow004) Title() string        { return "Special category data flows require explicit consent" }
+func (r *gdprFlow004) Severity() Severity   { return SeverityCritical }
 
 func (r *gdprFlow004) Evaluate(g GraphQuerier) ([]RuleResult, error) {
 	flows, err := g.NodesByLabel("DataFlow")
@@ -325,11 +325,13 @@ func (r *gdprFlow004) Evaluate(g GraphQuerier) ([]RuleResult, error) {
 
 type gdprFlow005 struct{}
 
-func (r *gdprFlow005) ID() string        { return "GDPR-FLOW-005" }
+func (r *gdprFlow005) ID() string           { return "GDPR-FLOW-005" }
 func (r *gdprFlow005) Framework() Framework { return FrameworkGDPR }
-func (r *gdprFlow005) Module() string     { return "dataflow" }
-func (r *gdprFlow005) Article() string    { return "Art. 30" }
-func (r *gdprFlow005) Title() string      { return "Active processing activities should have data flows defined" }
+func (r *gdprFlow005) Module() string       { return "dataflow" }
+func (r *gdprFlow005) Article() string      { return "Art. 30" }
+func (r *gdprFlow005) Title() string {
+	return "Active processing activities should have data flows defined"
+}
 func (r *gdprFlow005) Severity() Severity { return SeverityMedium }
 
 func (r *gdprFlow005) Evaluate(g GraphQuerier) ([]RuleResult, error) {
@@ -371,12 +373,12 @@ func (r *gdprFlow005) Evaluate(g GraphQuerier) ([]RuleResult, error) {
 
 type gdprInsp001 struct{}
 
-func (r *gdprInsp001) ID() string        { return "GDPR-INSP-001" }
+func (r *gdprInsp001) ID() string           { return "GDPR-INSP-001" }
 func (r *gdprInsp001) Framework() Framework { return FrameworkGDPR }
-func (r *gdprInsp001) Module() string     { return "inspection" }
-func (r *gdprInsp001) Article() string    { return "Art. 5(2)" }
-func (r *gdprInsp001) Title() string      { return "No inspection findings overdue" }
-func (r *gdprInsp001) Severity() Severity { return SeverityHigh }
+func (r *gdprInsp001) Module() string       { return "inspection" }
+func (r *gdprInsp001) Article() string      { return "Art. 5(2)" }
+func (r *gdprInsp001) Title() string        { return "No inspection findings overdue" }
+func (r *gdprInsp001) Severity() Severity   { return SeverityHigh }
 
 func (r *gdprInsp001) Evaluate(g GraphQuerier) ([]RuleResult, error) {
 	findings, err := g.NodesByLabel("InspectionFinding")
@@ -415,12 +417,12 @@ func (r *gdprInsp001) Evaluate(g GraphQuerier) ([]RuleResult, error) {
 
 type gdprInsp002 struct{}
 
-func (r *gdprInsp002) ID() string        { return "GDPR-INSP-002" }
+func (r *gdprInsp002) ID() string           { return "GDPR-INSP-002" }
 func (r *gdprInsp002) Framework() Framework { return FrameworkGDPR }
-func (r *gdprInsp002) Module() string     { return "inspection" }
-func (r *gdprInsp002) Article() string    { return "Art. 5(2)" }
-func (r *gdprInsp002) Title() string      { return "Completed remediations must be verified" }
-func (r *gdprInsp002) Severity() Severity { return SeverityMedium }
+func (r *gdprInsp002) Module() string       { return "inspection" }
+func (r *gdprInsp002) Article() string      { return "Art. 5(2)" }
+func (r *gdprInsp002) Title() string        { return "Completed remediations must be verified" }
+func (r *gdprInsp002) Severity() Severity   { return SeverityMedium }
 
 func (r *gdprInsp002) Evaluate(g GraphQuerier) ([]RuleResult, error) {
 	actions, err := g.NodesByLabel("RemediationAction")

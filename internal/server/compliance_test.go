@@ -114,6 +114,10 @@ func TestComplianceScan(t *testing.T) {
 
 func TestComplianceDashboard(t *testing.T) {
 	ts, _, _ := setupComplianceTestServer(t)
+	_, err := http.Post(ts.URL+"/api/v2/compliance/scan", "application/json", strings.NewReader(`{"framework":"gdpr","module":"setup"}`))
+	if err != nil {
+		t.Fatal(err)
+	}
 	resp, err := http.Get(ts.URL + "/api/v2/compliance/dashboard")
 	if err != nil {
 		t.Fatal(err)
@@ -121,5 +125,90 @@ func TestComplianceDashboard(t *testing.T) {
 	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("expected 200, got %d", resp.StatusCode)
+	}
+	var body map[string]any
+	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+		t.Fatal(err)
+	}
+	if body["latestScan"] == nil {
+		t.Fatal("expected latestScan")
+	}
+	if body["moduleScores"] == nil {
+		t.Fatal("expected moduleScores")
+	}
+}
+
+func TestComplianceScanListingDetailAndScore(t *testing.T) {
+	ts, _, _ := setupComplianceTestServer(t)
+
+	resp, err := http.Post(ts.URL+"/api/v2/compliance/scan", "application/json", strings.NewReader(`{"framework":"gdpr","module":"setup"}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200, got %d", resp.StatusCode)
+	}
+
+	var scan map[string]any
+	if err := json.NewDecoder(resp.Body).Decode(&scan); err != nil {
+		t.Fatal(err)
+	}
+	scanID, _ := scan["scanId"].(string)
+	if scanID == "" {
+		t.Fatal("expected scanId")
+	}
+
+	listResp, err := http.Get(ts.URL + "/api/v2/compliance/scans")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = listResp.Body.Close() }()
+	var list map[string]any
+	if err := json.NewDecoder(listResp.Body).Decode(&list); err != nil {
+		t.Fatal(err)
+	}
+	if total, _ := list["total"].(float64); total < 1 {
+		t.Fatalf("expected at least one scan, got %v", total)
+	}
+
+	detailResp, err := http.Get(ts.URL + "/api/v2/compliance/scans/" + scanID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = detailResp.Body.Close() }()
+	var detail map[string]any
+	if err := json.NewDecoder(detailResp.Body).Decode(&detail); err != nil {
+		t.Fatal(err)
+	}
+	props, _ := detail["properties"].(map[string]any)
+	if props["scanId"] != scanID {
+		t.Fatalf("expected detail for %s, got %v", scanID, props["scanId"])
+	}
+	if _, ok := detail["evaluations"].([]any); !ok {
+		t.Fatal("expected evaluations array")
+	}
+
+	scoreResp, err := http.Get(ts.URL + "/api/v2/compliance/score")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = scoreResp.Body.Close() }()
+	var score map[string]any
+	if err := json.NewDecoder(scoreResp.Body).Decode(&score); err != nil {
+		t.Fatal(err)
+	}
+	scores, ok := score["scores"].([]any)
+	if !ok || len(scores) == 0 {
+		t.Fatal("expected score entries")
+	}
+}
+
+func TestModuleFromRuleID(t *testing.T) {
+	if got := moduleFromRuleID("GDPR-ROPA-001"); got != "ropa" {
+		t.Fatalf("expected ropa, got %s", got)
+	}
+	if got := moduleFromRuleID("BROKEN"); got != "unknown" {
+		t.Fatalf("expected unknown, got %s", got)
 	}
 }

@@ -20,6 +20,8 @@ import (
 	"net/http"
 	"strings"
 	"testing"
+
+	"github.com/scalytics/kafgraph/internal/graph"
 )
 
 func TestGDPRSetupCRUD(t *testing.T) {
@@ -110,5 +112,90 @@ func TestGDPRDSRSLA(t *testing.T) {
 	total, _ := result["total"].(float64)
 	if total != 1 {
 		t.Fatalf("expected 1 SLA item, got %v", total)
+	}
+}
+
+func TestGDPRDetailUpdateAndDelete(t *testing.T) {
+	ts, _, g := setupComplianceTestServer(t)
+
+	lb, err := g.CreateNode("LegalBasis", graph.Properties{"name": "Contract"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	sm, err := g.CreateNode("SecurityMeasure", graph.Properties{"name": "Encryption"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	cat, err := g.CreateNode("DataCategory", graph.Properties{"name": "Employee Data"})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	ropaBody := `{"name":"Analytics","purpose":"Insights","legalBasisId":"` + string(lb.ID) + `","securityMeasureId":"` + string(sm.ID) + `","categoryIds":["` + string(cat.ID) + `"]}`
+	resp, err := http.Post(ts.URL+"/api/v2/compliance/gdpr/ropa", "application/json", strings.NewReader(ropaBody))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+	var created map[string]any
+	if err := json.NewDecoder(resp.Body).Decode(&created); err != nil {
+		t.Fatal(err)
+	}
+	ropaID, _ := created["id"].(string)
+	if ropaID == "" {
+		t.Fatal("expected ropa ID")
+	}
+
+	detailResp, err := http.Get(ts.URL + "/api/v2/compliance/gdpr/ropa/" + ropaID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = detailResp.Body.Close() }()
+	var detail map[string]any
+	if err := json.NewDecoder(detailResp.Body).Decode(&detail); err != nil {
+		t.Fatal(err)
+	}
+	if len(detail["edges"].([]any)) != 3 {
+		t.Fatalf("expected 3 edges, got %d", len(detail["edges"].([]any)))
+	}
+
+	req, _ := http.NewRequest("PUT", ts.URL+"/api/v2/compliance/gdpr/ropa/"+ropaID, strings.NewReader(`{"name":"Analytics v2"}`))
+	req.Header.Set("Content-Type", "application/json")
+	updateResp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = updateResp.Body.Close() }()
+	var updated map[string]any
+	if err := json.NewDecoder(updateResp.Body).Decode(&updated); err != nil {
+		t.Fatal(err)
+	}
+	props, _ := updated["properties"].(map[string]any)
+	if props["name"] != "Analytics v2" {
+		t.Fatalf("expected updated name, got %v", props["name"])
+	}
+
+	evidenceResp, err := http.Post(ts.URL+"/api/v2/compliance/gdpr/evidence", "application/json", strings.NewReader(`{"title":"Audit Trail"}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = evidenceResp.Body.Close() }()
+	var evidence map[string]any
+	if err := json.NewDecoder(evidenceResp.Body).Decode(&evidence); err != nil {
+		t.Fatal(err)
+	}
+	evidenceID, _ := evidence["id"].(string)
+	if evidenceID == "" {
+		t.Fatal("expected evidence ID")
+	}
+
+	delReq, _ := http.NewRequest("DELETE", ts.URL+"/api/v2/compliance/gdpr/evidence/"+evidenceID, nil)
+	delResp, err := http.DefaultClient.Do(delReq)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = delResp.Body.Close() }()
+	if delResp.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200 on delete, got %d", delResp.StatusCode)
 	}
 }

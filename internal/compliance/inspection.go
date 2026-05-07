@@ -111,8 +111,8 @@ func SignOffInspection(g *graph.Graph, inspectionID graph.NodeID, approverID str
 	}
 
 	_, err = g.UpsertNode(inspectionID, node.Label, graph.Properties{
-		"status":     string(InspectionSignedOff),
-		"approverId": approverID,
+		"status":      string(InspectionSignedOff),
+		"approverId":  approverID,
 		"signedOffAt": time.Now().UTC().Format(time.RFC3339),
 	})
 	if err != nil {
