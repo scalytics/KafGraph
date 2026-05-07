@@ -173,9 +173,10 @@ type DataFlowValidationResult struct {
 func (r *DataFlowValidationResult) SummaryText() string {
 	pass, fail := 0, 0
 	for _, c := range r.Checks {
-		if c.Status == EvalPass {
+		switch c.Status {
+		case EvalPass:
 			pass++
-		} else if c.Status == EvalFail {
+		case EvalFail:
 			fail++
 		}
 	}

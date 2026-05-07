@@ -20,6 +20,7 @@ import "time"
 // Framework identifies a compliance framework.
 type Framework string
 
+// Supported compliance frameworks.
 const (
 	FrameworkGDPR  Framework = "gdpr"
 	FrameworkSOC2  Framework = "soc2"
@@ -29,6 +30,7 @@ const (
 // Severity levels for compliance rules.
 type Severity string
 
+// Severity tiers from highest to lowest impact.
 const (
 	SeverityCritical Severity = "critical"
 	SeverityHigh     Severity = "high"
@@ -36,7 +38,7 @@ const (
 	SeverityLow      Severity = "low"
 )
 
-// SeverityWeight returns the numeric weight for score calculation.
+// Weight returns the numeric weight for score calculation.
 func (s Severity) Weight() float64 {
 	switch s {
 	case SeverityCritical:
@@ -55,6 +57,7 @@ func (s Severity) Weight() float64 {
 // EvalStatus is the result status of a rule evaluation.
 type EvalStatus string
 
+// Possible rule evaluation outcomes.
 const (
 	EvalPass    EvalStatus = "pass"
 	EvalFail    EvalStatus = "fail"
