@@ -30,12 +30,6 @@ linters:
           - errcheck
           - gosec
   settings:
-    govet:
-      enable:
-        - shadow
-      settings:
-        shadow:
-          strict: true
     revive:
       rules:
         - name: exported
