@@ -81,12 +81,12 @@ func handleDataFlowList(g *graph.Graph) http.HandlerFunc {
 func handleDataFlowCreate(g *graph.Graph) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var body struct {
-			Props         map[string]any `json:"properties"`
-			FromActivity  string         `json:"fromActivityId"`
-			ToActivity    string         `json:"toActivityId"`
-			ToProcessor   string         `json:"toProcessorId"`
-			CategoryIDs   []string       `json:"categoryIds"`
-			LegalBasisID  string         `json:"legalBasisId"`
+			Props        map[string]any `json:"properties"`
+			FromActivity string         `json:"fromActivityId"`
+			ToActivity   string         `json:"toActivityId"`
+			ToProcessor  string         `json:"toProcessorId"`
+			CategoryIDs  []string       `json:"categoryIds"`
+			LegalBasisID string         `json:"legalBasisId"`
 		}
 		if err := readJSON(r, &body); err != nil {
 			writeError(w, http.StatusBadRequest, err.Error())

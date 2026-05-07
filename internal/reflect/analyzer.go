@@ -42,6 +42,7 @@ type AnalysisResult struct {
 // EntityType classifies a recognized entity.
 type EntityType string
 
+// Recognized entity classifications.
 const (
 	EntityAgent EntityType = "agent"
 	EntitySkill EntityType = "skill"

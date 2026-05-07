@@ -77,10 +77,10 @@ func TestBlogTeamScenarioIngestion(t *testing.T) {
 	// Verify node counts by label.
 	assertNodeCount(t, g, "Agent", 4)
 	assertNodeCount(t, g, "Conversation", 1)
-	assertNodeCount(t, g, "Skill", 9)          // web_search, summarize, deep_search, rewrite, tone_check, citation_check, ascii_doc, proofread, format_html
-	assertNodeCount(t, g, "SharedMemory", 3)   // research-findings, editorial-notes, final-blog
-	assertNodeCount(t, g, "AuditEvent", 4)     // 3 task_completed + 1 pipeline_completed
-	assertMinNodeCount(t, g, "Message", 15)    // requests + responses + skill_requests + skill_responses
+	assertNodeCount(t, g, "Skill", 9)        // web_search, summarize, deep_search, rewrite, tone_check, citation_check, ascii_doc, proofread, format_html
+	assertNodeCount(t, g, "SharedMemory", 3) // research-findings, editorial-notes, final-blog
+	assertNodeCount(t, g, "AuditEvent", 4)   // 3 task_completed + 1 pipeline_completed
+	assertMinNodeCount(t, g, "Message", 15)  // requests + responses + skill_requests + skill_responses
 }
 
 func TestRunReflections(t *testing.T) {

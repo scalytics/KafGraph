@@ -25,6 +25,7 @@ import (
 // InspectionStatus tracks the lifecycle of an inspection.
 type InspectionStatus string
 
+// Inspection lifecycle states.
 const (
 	InspectionDraft      InspectionStatus = "draft"
 	InspectionInProgress InspectionStatus = "in_progress"
@@ -36,6 +37,7 @@ const (
 // FindingStatus tracks the lifecycle of an inspection finding.
 type FindingStatus string
 
+// Finding lifecycle states.
 const (
 	FindingOpen       FindingStatus = "open"
 	FindingRemediated FindingStatus = "remediated"
@@ -46,6 +48,7 @@ const (
 // RemediationStatus tracks the lifecycle of a remediation action.
 type RemediationStatus string
 
+// Remediation lifecycle states.
 const (
 	RemediationPending    RemediationStatus = "pending"
 	RemediationInProgress RemediationStatus = "in_progress"
@@ -111,8 +114,8 @@ func SignOffInspection(g *graph.Graph, inspectionID graph.NodeID, approverID str
 	}
 
 	_, err = g.UpsertNode(inspectionID, node.Label, graph.Properties{
-		"status":     string(InspectionSignedOff),
-		"approverId": approverID,
+		"status":      string(InspectionSignedOff),
+		"approverId":  approverID,
 		"signedOffAt": time.Now().UTC().Format(time.RFC3339),
 	})
 	if err != nil {

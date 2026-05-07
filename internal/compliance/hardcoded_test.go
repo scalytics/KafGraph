@@ -182,3 +182,93 @@ func TestRegisterGDPRRules(t *testing.T) {
 		t.Fatalf("expected 13 GDPR rules, got %d", len(rules))
 	}
 }
+
+func TestGDPRWrapperRulesAndEvidence(t *testing.T) {
+	q := newMockQuerier()
+	q.nodes["ProcessingActivity"] = NodeList{
+		{ID: "n:PA:1", Label: "ProcessingActivity", Properties: map[string]any{"retentionPeriod": "30d", "riskLevel": "high"}},
+		{ID: "n:PA:2", Label: "ProcessingActivity", Properties: map[string]any{}},
+	}
+	q.nodes["DataSubjectRequest"] = NodeList{
+		{ID: "n:DSR:1", Properties: map[string]any{"status": "completed", "responseDetails": "emailed data export"}},
+		{ID: "n:DSR:2", Properties: map[string]any{"status": "completed"}},
+	}
+	q.nodes["DPIA"] = NodeList{
+		{ID: "n:DPIA:1", Properties: map[string]any{}},
+		{ID: "n:DPIA:2", Properties: map[string]any{}},
+	}
+	q.nodes["ChecklistItem"] = NodeList{
+		{ID: "n:CL:1", Properties: map[string]any{"status": "compliant"}},
+		{ID: "n:CL:2", Properties: map[string]any{"status": "compliant"}},
+	}
+	q.edges["n:PA:1"] = EdgeList{
+		{Label: "PROCESSES_CATEGORY", To: "n:Cat:1"},
+		{Label: "PROTECTED_BY", To: "n:SM:1"},
+	}
+	q.edges["n:DPIA:1"] = EdgeList{{Label: "DPIA_FOR", To: "n:PA:1"}}
+	q.edges["n:DPIA:2"] = EdgeList{{Label: "HAS_RISK", To: "n:Risk:1"}}
+	q.edges["n:CL:1"] = EdgeList{{Label: "EVIDENCED_BY", To: "n:EV:1"}}
+
+	tests := []struct {
+		name      string
+		rule      Rule
+		wantCount int
+		statuses  []EvalStatus
+	}{
+		{"ropa002", &gdprRopa002{}, 2, []EvalStatus{EvalPass, EvalFail}},
+		{"ropa003", &gdprRopa003{}, 2, []EvalStatus{EvalPass, EvalFail}},
+		{"ropa004", &gdprRopa004{}, 2, []EvalStatus{EvalPass, EvalFail}},
+		{"dsr002", &gdprDSR002{}, 2, []EvalStatus{EvalPass, EvalFail}},
+		{"dpia001", &gdprDPIA001{}, 1, []EvalStatus{EvalPass}},
+		{"dpia002", &gdprDPIA002{}, 2, []EvalStatus{EvalFail, EvalPass}},
+		{"evidence001", &gdprEvidence001{}, 2, []EvalStatus{EvalPass, EvalFail}},
+	}
+
+	for _, tt := range tests {
+		results, err := tt.rule.Evaluate(q)
+		if err != nil {
+			t.Fatalf("%s Evaluate: %v", tt.name, err)
+		}
+		if len(results) != tt.wantCount {
+			t.Fatalf("%s expected %d results, got %d", tt.name, tt.wantCount, len(results))
+		}
+		for i, status := range tt.statuses {
+			if results[i].Status != status {
+				t.Fatalf("%s result[%d] = %s, want %s", tt.name, i, results[i].Status, status)
+			}
+		}
+	}
+}
+
+func TestGDPRBreach002AndFlow004Evaluate(t *testing.T) {
+	q := newMockQuerier()
+	q.nodes["DataBreach"] = NodeList{
+		{ID: "n:Breach:1", Properties: map[string]any{}},
+		{ID: "n:Breach:2", Properties: map[string]any{"subjectsNotifiedAt": time.Now().UTC().Format(time.RFC3339)}},
+	}
+	q.edges["n:Breach:2"] = EdgeList{{Label: "BREACH_INVOLVES", To: "n:Cat:1"}}
+
+	breachResults, err := (&gdprBreach002{}).Evaluate(q)
+	if err != nil {
+		t.Fatalf("gdprBreach002 Evaluate: %v", err)
+	}
+	if len(breachResults) != 2 {
+		t.Fatalf("expected 2 breach results, got %d", len(breachResults))
+	}
+	if breachResults[0].Status != EvalPass || breachResults[1].Status != EvalPass {
+		t.Fatalf("unexpected breach statuses: %+v", breachResults)
+	}
+
+	q.nodes["DataFlow"] = NodeList{
+		{ID: "n:Flow:1", Properties: map[string]any{"legalBasis": "legitimate_interest"}},
+	}
+	q.edges["n:Flow:1"] = EdgeList{{Label: "CARRIES", To: "n:Cat:2"}}
+
+	flowResults, err := (&gdprFlow004{}).Evaluate(q)
+	if err != nil {
+		t.Fatalf("gdprFlow004 Evaluate: %v", err)
+	}
+	if len(flowResults) != 0 {
+		t.Fatalf("expected no flow004 results, got %d", len(flowResults))
+	}
+}

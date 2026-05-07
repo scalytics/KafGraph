@@ -10,7 +10,8 @@ formatters:
     - goimports
   settings:
     goimports:
-      local-prefixes: github.com/scalytics/kafgraph
+      local-prefixes:
+        - github.com/scalytics/kafgraph
 
 linters:
   enable:
@@ -29,8 +30,6 @@ linters:
           - errcheck
           - gosec
   settings:
-    govet:
-      shadow: true
     revive:
       rules:
         - name: exported

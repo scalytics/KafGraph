@@ -1,3 +1,7 @@
+# Local AI assistant context (not committed)
+CLAUDE.md
+.claude/
+
 # Binaries
 *.exe
 *.exe~
@@ -15,10 +19,10 @@ __debug_bin*
 
 # Code coverage profiles and other test artifacts
 *.out
-coverage.*
+/coverage.out
+/coverage.html
 *.coverprofile
 profile.cov
-coverage.html
 
 # Dependency directories
 vendor/
@@ -65,3 +69,19 @@ Thumbs.db
 *.log
 *.pid
 tmp/
+
+# AI agent local instructions and tooling artifacts
+AGENTS.md
+CLAUDE.md
+GEMINI.md
+COPILOT.md
+.claude/
+.codex/
+.cursor/
+.aider/
+.roo/
+.windsurf/
+.continue/
+.cline/
+.mcp/
+.github/copilot-instructions.md

@@ -20,6 +20,7 @@ import "time"
 // Framework identifies a compliance framework.
 type Framework string
 
+// Supported compliance frameworks.
 const (
 	FrameworkGDPR  Framework = "gdpr"
 	FrameworkSOC2  Framework = "soc2"
@@ -29,6 +30,7 @@ const (
 // Severity levels for compliance rules.
 type Severity string
 
+// Severity tiers from highest to lowest impact.
 const (
 	SeverityCritical Severity = "critical"
 	SeverityHigh     Severity = "high"
@@ -36,7 +38,7 @@ const (
 	SeverityLow      Severity = "low"
 )
 
-// SeverityWeight returns the numeric weight for score calculation.
+// Weight returns the numeric weight for score calculation.
 func (s Severity) Weight() float64 {
 	switch s {
 	case SeverityCritical:
@@ -55,6 +57,7 @@ func (s Severity) Weight() float64 {
 // EvalStatus is the result status of a rule evaluation.
 type EvalStatus string
 
+// Possible rule evaluation outcomes.
 const (
 	EvalPass    EvalStatus = "pass"
 	EvalFail    EvalStatus = "fail"
@@ -117,27 +120,27 @@ type ScanRequest struct {
 
 // ScanResult is the aggregated result of a compliance scan.
 type ScanResult struct {
-	ScanID      string       `json:"scanId"`
-	Framework   Framework    `json:"framework"`
-	TriggeredBy string       `json:"triggeredBy"`
-	StartedAt   time.Time    `json:"startedAt"`
-	CompletedAt time.Time    `json:"completedAt"`
-	PassCount   int          `json:"passCount"`
-	FailCount   int          `json:"failCount"`
-	WarningCount int         `json:"warningCount"`
-	NACount     int          `json:"naCount"`
-	Score       float64      `json:"score"`
-	Evaluations []RuleResult `json:"evaluations"`
+	ScanID       string       `json:"scanId"`
+	Framework    Framework    `json:"framework"`
+	TriggeredBy  string       `json:"triggeredBy"`
+	StartedAt    time.Time    `json:"startedAt"`
+	CompletedAt  time.Time    `json:"completedAt"`
+	PassCount    int          `json:"passCount"`
+	FailCount    int          `json:"failCount"`
+	WarningCount int          `json:"warningCount"`
+	NACount      int          `json:"naCount"`
+	Score        float64      `json:"score"`
+	Evaluations  []RuleResult `json:"evaluations"`
 }
 
 // ScoreSummary holds per-framework compliance scores.
 type ScoreSummary struct {
-	Framework   Framework `json:"framework"`
-	Score       float64   `json:"score"`
-	PassCount   int       `json:"passCount"`
-	FailCount   int       `json:"failCount"`
-	TotalRules  int       `json:"totalRules"`
-	LastScanAt  string    `json:"lastScanAt,omitempty"`
+	Framework  Framework `json:"framework"`
+	Score      float64   `json:"score"`
+	PassCount  int       `json:"passCount"`
+	FailCount  int       `json:"failCount"`
+	TotalRules int       `json:"totalRules"`
+	LastScanAt string    `json:"lastScanAt,omitempty"`
 }
 
 // DashboardData aggregates data for the compliance dashboard.

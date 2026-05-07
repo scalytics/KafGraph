@@ -26,6 +26,7 @@ LDFLAGS     := -s -w \
 
 BIN_DIR     := bin
 STAMP_DIR   := .build
+TOOLS_BIN_DIR := $(STAMP_DIR)/bin
 
 DOCKER_REGISTRY ?= ghcr.io/scalytics
 DOCKER_IMAGE    ?= $(DOCKER_REGISTRY)/kafgraph
@@ -36,6 +37,8 @@ COVERAGE_FILE  := coverage.out
 
 GOLANGCI_LINT  ?= golangci-lint
 GOLANGCI_FLAGS ?= --config .golangci.yml
+GOVULNCHECK_VERSION ?= latest
+GOVULNCHECK ?= $(abspath $(TOOLS_BIN_DIR))/govulncheck
 
 JEKYLL         ?= bundle exec jekyll
 DOCS_DIR       := docs
@@ -139,14 +142,18 @@ fmt-check: ## Check formatting (CI gate)
 
 # ─── Security ────────────────────────────────────────────────────────────────
 
+$(GOVULNCHECK):
+	@mkdir -p $(TOOLS_BIN_DIR)
+	GOBIN=$(abspath $(TOOLS_BIN_DIR)) $(GO) install golang.org/x/vuln/cmd/govulncheck@$(GOVULNCHECK_VERSION)
+
 .PHONY: sec
-sec: ## Run security checks (gosec via lint + govulncheck)
+sec: $(GOVULNCHECK) ## Run security checks (gosec via lint + govulncheck)
 	$(GOLANGCI_LINT) run $(GOLANGCI_FLAGS) --enable-only gosec ./...
-	govulncheck ./...
+	$(GOVULNCHECK) ./...
 
 .PHONY: vulncheck
-vulncheck: ## Check for known vulnerabilities in dependencies
-	govulncheck ./...
+vulncheck: $(GOVULNCHECK) ## Check for known vulnerabilities in dependencies
+	$(GOVULNCHECK) ./...
 
 # ─── Docker ──────────────────────────────────────────────────────────────────
 

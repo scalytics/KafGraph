@@ -451,17 +451,6 @@ func handleMgmtConfigDetailed(opts *serverOpts) http.HandlerFunc {
 			return
 		}
 
-		// Define all settings grouped by section.
-		type sectionDef struct {
-			Name     string
-			Settings []struct {
-				Key      string
-				Default  any
-				GetValue func(*config.Config) any
-			}
-		}
-
-		// Build the detailed config by section.
 		sections := buildConfigSections(opts.cfg)
 		writeJSON(w, http.StatusOK, sections)
 	}

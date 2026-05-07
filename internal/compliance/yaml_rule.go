@@ -42,11 +42,11 @@ type yamlRule struct {
 	def *YAMLRuleDef
 }
 
-func (r *yamlRule) ID() string        { return r.def.RuleID }
+func (r *yamlRule) ID() string           { return r.def.RuleID }
 func (r *yamlRule) Framework() Framework { return Framework(r.def.FrameworkStr) }
-func (r *yamlRule) Module() string     { return r.def.ModuleStr }
-func (r *yamlRule) Article() string    { return r.def.ArticleStr }
-func (r *yamlRule) Title() string      { return r.def.TitleStr }
+func (r *yamlRule) Module() string       { return r.def.ModuleStr }
+func (r *yamlRule) Article() string      { return r.def.ArticleStr }
+func (r *yamlRule) Title() string        { return r.def.TitleStr }
 
 func (r *yamlRule) Severity() Severity {
 	switch Severity(r.def.SeverityStr) {

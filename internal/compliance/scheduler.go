@@ -37,7 +37,7 @@ func NewScheduler(engine *Engine, interval time.Duration, autoScan bool) *Schedu
 	}
 }
 
-// Run starts the scheduled scan loop. Blocks until ctx is cancelled.
+// Run starts the scheduled scan loop. Blocks until ctx is canceled.
 func (s *Scheduler) Run(ctx context.Context) error {
 	if !s.autoScan || s.interval <= 0 {
 		<-ctx.Done()

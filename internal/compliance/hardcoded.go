@@ -47,12 +47,12 @@ func RegisterGDPRRules(e *Engine) {
 
 type gdprSetup001 struct{}
 
-func (r *gdprSetup001) ID() string        { return "GDPR-SETUP-001" }
+func (r *gdprSetup001) ID() string           { return "GDPR-SETUP-001" }
 func (r *gdprSetup001) Framework() Framework { return FrameworkGDPR }
-func (r *gdprSetup001) Module() string     { return "setup" }
-func (r *gdprSetup001) Article() string    { return "Art. 37" }
-func (r *gdprSetup001) Title() string      { return "DPO designation required" }
-func (r *gdprSetup001) Severity() Severity { return SeverityCritical }
+func (r *gdprSetup001) Module() string       { return "setup" }
+func (r *gdprSetup001) Article() string      { return "Art. 37" }
+func (r *gdprSetup001) Title() string        { return "DPO designation required" }
+func (r *gdprSetup001) Severity() Severity   { return SeverityCritical }
 
 func (r *gdprSetup001) Evaluate(g GraphQuerier) ([]RuleResult, error) {
 	nodes, err := g.NodesByLabel("OrgSetup")
@@ -92,12 +92,12 @@ func (r *gdprSetup001) Evaluate(g GraphQuerier) ([]RuleResult, error) {
 
 type gdprRopa001 struct{}
 
-func (r *gdprRopa001) ID() string        { return "GDPR-ROPA-001" }
+func (r *gdprRopa001) ID() string           { return "GDPR-ROPA-001" }
 func (r *gdprRopa001) Framework() Framework { return FrameworkGDPR }
-func (r *gdprRopa001) Module() string     { return "ropa" }
-func (r *gdprRopa001) Article() string    { return "Art. 6" }
-func (r *gdprRopa001) Title() string      { return "Legal basis required for all processing activities" }
-func (r *gdprRopa001) Severity() Severity { return SeverityCritical }
+func (r *gdprRopa001) Module() string       { return "ropa" }
+func (r *gdprRopa001) Article() string      { return "Art. 6" }
+func (r *gdprRopa001) Title() string        { return "Legal basis required for all processing activities" }
+func (r *gdprRopa001) Severity() Severity   { return SeverityCritical }
 
 func (r *gdprRopa001) Evaluate(g GraphQuerier) ([]RuleResult, error) {
 	return checkPropertyNotEmpty(g, r.ID(), r.Severity(), "ProcessingActivity", "legalBasis")
@@ -107,12 +107,12 @@ func (r *gdprRopa001) Evaluate(g GraphQuerier) ([]RuleResult, error) {
 
 type gdprRopa002 struct{}
 
-func (r *gdprRopa002) ID() string        { return "GDPR-ROPA-002" }
+func (r *gdprRopa002) ID() string           { return "GDPR-ROPA-002" }
 func (r *gdprRopa002) Framework() Framework { return FrameworkGDPR }
-func (r *gdprRopa002) Module() string     { return "ropa" }
-func (r *gdprRopa002) Article() string    { return "Art. 30" }
-func (r *gdprRopa002) Title() string      { return "Retention period required for processing activities" }
-func (r *gdprRopa002) Severity() Severity { return SeverityHigh }
+func (r *gdprRopa002) Module() string       { return "ropa" }
+func (r *gdprRopa002) Article() string      { return "Art. 30" }
+func (r *gdprRopa002) Title() string        { return "Retention period required for processing activities" }
+func (r *gdprRopa002) Severity() Severity   { return SeverityHigh }
 
 func (r *gdprRopa002) Evaluate(g GraphQuerier) ([]RuleResult, error) {
 	return checkPropertyNotEmpty(g, r.ID(), r.Severity(), "ProcessingActivity", "retentionPeriod")
@@ -122,12 +122,12 @@ func (r *gdprRopa002) Evaluate(g GraphQuerier) ([]RuleResult, error) {
 
 type gdprRopa003 struct{}
 
-func (r *gdprRopa003) ID() string        { return "GDPR-ROPA-003" }
+func (r *gdprRopa003) ID() string           { return "GDPR-ROPA-003" }
 func (r *gdprRopa003) Framework() Framework { return FrameworkGDPR }
-func (r *gdprRopa003) Module() string     { return "ropa" }
-func (r *gdprRopa003) Article() string    { return "Art. 30" }
-func (r *gdprRopa003) Title() string      { return "Data categories must be documented per activity" }
-func (r *gdprRopa003) Severity() Severity { return SeverityMedium }
+func (r *gdprRopa003) Module() string       { return "ropa" }
+func (r *gdprRopa003) Article() string      { return "Art. 30" }
+func (r *gdprRopa003) Title() string        { return "Data categories must be documented per activity" }
+func (r *gdprRopa003) Severity() Severity   { return SeverityMedium }
 
 func (r *gdprRopa003) Evaluate(g GraphQuerier) ([]RuleResult, error) {
 	return checkHasEdge(g, r.ID(), r.Severity(), "ProcessingActivity", "PROCESSES_CATEGORY")
@@ -137,12 +137,12 @@ func (r *gdprRopa003) Evaluate(g GraphQuerier) ([]RuleResult, error) {
 
 type gdprRopa004 struct{}
 
-func (r *gdprRopa004) ID() string        { return "GDPR-ROPA-004" }
+func (r *gdprRopa004) ID() string           { return "GDPR-ROPA-004" }
 func (r *gdprRopa004) Framework() Framework { return FrameworkGDPR }
-func (r *gdprRopa004) Module() string     { return "ropa" }
-func (r *gdprRopa004) Article() string    { return "Art. 32" }
-func (r *gdprRopa004) Title() string      { return "Technical/organizational measures required" }
-func (r *gdprRopa004) Severity() Severity { return SeverityHigh }
+func (r *gdprRopa004) Module() string       { return "ropa" }
+func (r *gdprRopa004) Article() string      { return "Art. 32" }
+func (r *gdprRopa004) Title() string        { return "Technical/organizational measures required" }
+func (r *gdprRopa004) Severity() Severity   { return SeverityHigh }
 
 func (r *gdprRopa004) Evaluate(g GraphQuerier) ([]RuleResult, error) {
 	return checkHasEdge(g, r.ID(), r.Severity(), "ProcessingActivity", "PROTECTED_BY")
@@ -152,12 +152,12 @@ func (r *gdprRopa004) Evaluate(g GraphQuerier) ([]RuleResult, error) {
 
 type gdprDSR001 struct{}
 
-func (r *gdprDSR001) ID() string        { return "GDPR-DSR-001" }
+func (r *gdprDSR001) ID() string           { return "GDPR-DSR-001" }
 func (r *gdprDSR001) Framework() Framework { return FrameworkGDPR }
-func (r *gdprDSR001) Module() string     { return "dsr" }
-func (r *gdprDSR001) Article() string    { return "Art. 12" }
-func (r *gdprDSR001) Title() string      { return "No DSR requests overdue" }
-func (r *gdprDSR001) Severity() Severity { return SeverityCritical }
+func (r *gdprDSR001) Module() string       { return "dsr" }
+func (r *gdprDSR001) Article() string      { return "Art. 12" }
+func (r *gdprDSR001) Title() string        { return "No DSR requests overdue" }
+func (r *gdprDSR001) Severity() Severity   { return SeverityCritical }
 
 func (r *gdprDSR001) Evaluate(g GraphQuerier) ([]RuleResult, error) {
 	nodes, err := g.NodesByLabel("DataSubjectRequest")
@@ -197,7 +197,7 @@ func (r *gdprDSR001) Evaluate(g GraphQuerier) ([]RuleResult, error) {
 		if now.After(deadline) {
 			results = append(results, RuleResult{
 				RuleID: r.ID(), Status: EvalFail, NodeID: n.ID,
-				Details: fmt.Sprintf("DSR overdue (deadline: %s)", deadlineStr),
+				Details:  fmt.Sprintf("DSR overdue (deadline: %s)", deadlineStr),
 				Severity: r.Severity(),
 			})
 		} else {
@@ -214,12 +214,12 @@ func (r *gdprDSR001) Evaluate(g GraphQuerier) ([]RuleResult, error) {
 
 type gdprDSR002 struct{}
 
-func (r *gdprDSR002) ID() string        { return "GDPR-DSR-002" }
+func (r *gdprDSR002) ID() string           { return "GDPR-DSR-002" }
 func (r *gdprDSR002) Framework() Framework { return FrameworkGDPR }
-func (r *gdprDSR002) Module() string     { return "dsr" }
-func (r *gdprDSR002) Article() string    { return "Art. 15-22" }
-func (r *gdprDSR002) Title() string      { return "Completed DSRs must have response details" }
-func (r *gdprDSR002) Severity() Severity { return SeverityHigh }
+func (r *gdprDSR002) Module() string       { return "dsr" }
+func (r *gdprDSR002) Article() string      { return "Art. 15-22" }
+func (r *gdprDSR002) Title() string        { return "Completed DSRs must have response details" }
+func (r *gdprDSR002) Severity() Severity   { return SeverityHigh }
 
 func (r *gdprDSR002) Evaluate(g GraphQuerier) ([]RuleResult, error) {
 	nodes, err := g.NodesByLabel("DataSubjectRequest")
@@ -236,7 +236,7 @@ func (r *gdprDSR002) Evaluate(g GraphQuerier) ([]RuleResult, error) {
 		if resp == "" {
 			results = append(results, RuleResult{
 				RuleID: r.ID(), Status: EvalFail, NodeID: n.ID,
-				Details: "Completed DSR missing responseDetails",
+				Details:  "Completed DSR missing responseDetails",
 				Severity: r.Severity(),
 			})
 		} else {
@@ -253,12 +253,12 @@ func (r *gdprDSR002) Evaluate(g GraphQuerier) ([]RuleResult, error) {
 
 type gdprBreach001 struct{}
 
-func (r *gdprBreach001) ID() string        { return "GDPR-BREACH-001" }
+func (r *gdprBreach001) ID() string           { return "GDPR-BREACH-001" }
 func (r *gdprBreach001) Framework() Framework { return FrameworkGDPR }
-func (r *gdprBreach001) Module() string     { return "breach" }
-func (r *gdprBreach001) Article() string    { return "Art. 33" }
-func (r *gdprBreach001) Title() string      { return "Authority notification within 72 hours" }
-func (r *gdprBreach001) Severity() Severity { return SeverityCritical }
+func (r *gdprBreach001) Module() string       { return "breach" }
+func (r *gdprBreach001) Article() string      { return "Art. 33" }
+func (r *gdprBreach001) Title() string        { return "Authority notification within 72 hours" }
+func (r *gdprBreach001) Severity() Severity   { return SeverityCritical }
 
 func (r *gdprBreach001) Evaluate(g GraphQuerier) ([]RuleResult, error) {
 	nodes, err := g.NodesByLabel("DataBreach")
@@ -271,7 +271,7 @@ func (r *gdprBreach001) Evaluate(g GraphQuerier) ([]RuleResult, error) {
 		if sev != "high" && sev != "critical" {
 			results = append(results, RuleResult{
 				RuleID: r.ID(), Status: EvalPass, NodeID: n.ID,
-				Details: "Low/medium breach — 72h rule not mandatory",
+				Details:  "Low/medium breach — 72h rule not mandatory",
 				Severity: r.Severity(),
 			})
 			continue
@@ -281,7 +281,7 @@ func (r *gdprBreach001) Evaluate(g GraphQuerier) ([]RuleResult, error) {
 		if notifiedStr == "" {
 			results = append(results, RuleResult{
 				RuleID: r.ID(), Status: EvalFail, NodeID: n.ID,
-				Details: "High/critical breach not yet notified to authority",
+				Details:  "High/critical breach not yet notified to authority",
 				Severity: r.Severity(),
 			})
 			continue
@@ -291,7 +291,7 @@ func (r *gdprBreach001) Evaluate(g GraphQuerier) ([]RuleResult, error) {
 		if err1 != nil || err2 != nil {
 			results = append(results, RuleResult{
 				RuleID: r.ID(), Status: EvalWarning, NodeID: n.ID,
-				Details: "Cannot parse breach timestamps",
+				Details:  "Cannot parse breach timestamps",
 				Severity: r.Severity(),
 			})
 			continue
@@ -299,13 +299,13 @@ func (r *gdprBreach001) Evaluate(g GraphQuerier) ([]RuleResult, error) {
 		if notified.Sub(discovered) > 72*time.Hour {
 			results = append(results, RuleResult{
 				RuleID: r.ID(), Status: EvalFail, NodeID: n.ID,
-				Details: fmt.Sprintf("Notification took %s (> 72h)", notified.Sub(discovered)),
+				Details:  fmt.Sprintf("Notification took %s (> 72h)", notified.Sub(discovered)),
 				Severity: r.Severity(),
 			})
 		} else {
 			results = append(results, RuleResult{
 				RuleID: r.ID(), Status: EvalPass, NodeID: n.ID,
-				Details: "Authority notified within 72h",
+				Details:  "Authority notified within 72h",
 				Severity: r.Severity(),
 			})
 		}
@@ -317,12 +317,12 @@ func (r *gdprBreach001) Evaluate(g GraphQuerier) ([]RuleResult, error) {
 
 type gdprBreach002 struct{}
 
-func (r *gdprBreach002) ID() string        { return "GDPR-BREACH-002" }
+func (r *gdprBreach002) ID() string           { return "GDPR-BREACH-002" }
 func (r *gdprBreach002) Framework() Framework { return FrameworkGDPR }
-func (r *gdprBreach002) Module() string     { return "breach" }
-func (r *gdprBreach002) Article() string    { return "Art. 34" }
-func (r *gdprBreach002) Title() string      { return "Data subjects notified for special category breaches" }
-func (r *gdprBreach002) Severity() Severity { return SeverityCritical }
+func (r *gdprBreach002) Module() string       { return "breach" }
+func (r *gdprBreach002) Article() string      { return "Art. 34" }
+func (r *gdprBreach002) Title() string        { return "Data subjects notified for special category breaches" }
+func (r *gdprBreach002) Severity() Severity   { return SeverityCritical }
 
 func (r *gdprBreach002) Evaluate(g GraphQuerier) ([]RuleResult, error) {
 	nodes, err := g.NodesByLabel("DataBreach")
@@ -343,7 +343,7 @@ func (r *gdprBreach002) Evaluate(g GraphQuerier) ([]RuleResult, error) {
 		if !involvesSpecial {
 			results = append(results, RuleResult{
 				RuleID: r.ID(), Status: EvalPass, NodeID: n.ID,
-				Details: "Breach does not involve special categories",
+				Details:  "Breach does not involve special categories",
 				Severity: r.Severity(),
 			})
 			continue
@@ -352,7 +352,7 @@ func (r *gdprBreach002) Evaluate(g GraphQuerier) ([]RuleResult, error) {
 		if notifiedStr == "" {
 			results = append(results, RuleResult{
 				RuleID: r.ID(), Status: EvalFail, NodeID: n.ID,
-				Details: "Breach involves special categories but subjects not notified",
+				Details:  "Breach involves special categories but subjects not notified",
 				Severity: r.Severity(),
 			})
 		} else {
@@ -369,12 +369,12 @@ func (r *gdprBreach002) Evaluate(g GraphQuerier) ([]RuleResult, error) {
 
 type gdprDPIA001 struct{}
 
-func (r *gdprDPIA001) ID() string        { return "GDPR-DPIA-001" }
+func (r *gdprDPIA001) ID() string           { return "GDPR-DPIA-001" }
 func (r *gdprDPIA001) Framework() Framework { return FrameworkGDPR }
-func (r *gdprDPIA001) Module() string     { return "dpia" }
-func (r *gdprDPIA001) Article() string    { return "Art. 35" }
-func (r *gdprDPIA001) Title() string      { return "DPIA required for high-risk processing" }
-func (r *gdprDPIA001) Severity() Severity { return SeverityCritical }
+func (r *gdprDPIA001) Module() string       { return "dpia" }
+func (r *gdprDPIA001) Article() string      { return "Art. 35" }
+func (r *gdprDPIA001) Title() string        { return "DPIA required for high-risk processing" }
+func (r *gdprDPIA001) Severity() Severity   { return SeverityCritical }
 
 func (r *gdprDPIA001) Evaluate(g GraphQuerier) ([]RuleResult, error) {
 	activities, err := g.NodesByLabel("ProcessingActivity")
@@ -408,7 +408,7 @@ func (r *gdprDPIA001) Evaluate(g GraphQuerier) ([]RuleResult, error) {
 		} else {
 			results = append(results, RuleResult{
 				RuleID: r.ID(), Status: EvalFail, NodeID: a.ID,
-				Details: "High-risk activity missing DPIA",
+				Details:  "High-risk activity missing DPIA",
 				Severity: r.Severity(),
 			})
 		}
@@ -420,12 +420,12 @@ func (r *gdprDPIA001) Evaluate(g GraphQuerier) ([]RuleResult, error) {
 
 type gdprDPIA002 struct{}
 
-func (r *gdprDPIA002) ID() string        { return "GDPR-DPIA-002" }
+func (r *gdprDPIA002) ID() string           { return "GDPR-DPIA-002" }
 func (r *gdprDPIA002) Framework() Framework { return FrameworkGDPR }
-func (r *gdprDPIA002) Module() string     { return "dpia" }
-func (r *gdprDPIA002) Article() string    { return "Art. 35" }
-func (r *gdprDPIA002) Title() string      { return "Every DPIA must identify risks" }
-func (r *gdprDPIA002) Severity() Severity { return SeverityHigh }
+func (r *gdprDPIA002) Module() string       { return "dpia" }
+func (r *gdprDPIA002) Article() string      { return "Art. 35" }
+func (r *gdprDPIA002) Title() string        { return "Every DPIA must identify risks" }
+func (r *gdprDPIA002) Severity() Severity   { return SeverityHigh }
 
 func (r *gdprDPIA002) Evaluate(g GraphQuerier) ([]RuleResult, error) {
 	dpias, err := g.NodesByLabel("DPIA")
@@ -450,7 +450,7 @@ func (r *gdprDPIA002) Evaluate(g GraphQuerier) ([]RuleResult, error) {
 		} else {
 			results = append(results, RuleResult{
 				RuleID: r.ID(), Status: EvalFail, NodeID: d.ID,
-				Details: "DPIA has no identified risks",
+				Details:  "DPIA has no identified risks",
 				Severity: r.Severity(),
 			})
 		}
@@ -462,12 +462,12 @@ func (r *gdprDPIA002) Evaluate(g GraphQuerier) ([]RuleResult, error) {
 
 type gdprProc001 struct{}
 
-func (r *gdprProc001) ID() string        { return "GDPR-PROC-001" }
+func (r *gdprProc001) ID() string           { return "GDPR-PROC-001" }
 func (r *gdprProc001) Framework() Framework { return FrameworkGDPR }
-func (r *gdprProc001) Module() string     { return "processor" }
-func (r *gdprProc001) Article() string    { return "Art. 28" }
-func (r *gdprProc001) Title() string      { return "Active processors must have signed contracts" }
-func (r *gdprProc001) Severity() Severity { return SeverityHigh }
+func (r *gdprProc001) Module() string       { return "processor" }
+func (r *gdprProc001) Article() string      { return "Art. 28" }
+func (r *gdprProc001) Title() string        { return "Active processors must have signed contracts" }
+func (r *gdprProc001) Severity() Severity   { return SeverityHigh }
 
 func (r *gdprProc001) Evaluate(g GraphQuerier) ([]RuleResult, error) {
 	nodes, err := g.NodesByLabel("DataProcessor")
@@ -485,7 +485,7 @@ func (r *gdprProc001) Evaluate(g GraphQuerier) ([]RuleResult, error) {
 		} else {
 			results = append(results, RuleResult{
 				RuleID: r.ID(), Status: EvalFail, NodeID: n.ID,
-				Details: fmt.Sprintf("Processor contract status: %s", status),
+				Details:  fmt.Sprintf("Processor contract status: %s", status),
 				Severity: r.Severity(),
 			})
 		}
@@ -497,12 +497,12 @@ func (r *gdprProc001) Evaluate(g GraphQuerier) ([]RuleResult, error) {
 
 type gdprEvidence001 struct{}
 
-func (r *gdprEvidence001) ID() string        { return "GDPR-EVIDENCE-001" }
+func (r *gdprEvidence001) ID() string           { return "GDPR-EVIDENCE-001" }
 func (r *gdprEvidence001) Framework() Framework { return FrameworkGDPR }
-func (r *gdprEvidence001) Module() string     { return "evidence" }
-func (r *gdprEvidence001) Article() string    { return "Art. 5(2)" }
-func (r *gdprEvidence001) Title() string      { return "Compliant checklist items must have evidence" }
-func (r *gdprEvidence001) Severity() Severity { return SeverityMedium }
+func (r *gdprEvidence001) Module() string       { return "evidence" }
+func (r *gdprEvidence001) Article() string      { return "Art. 5(2)" }
+func (r *gdprEvidence001) Title() string        { return "Compliant checklist items must have evidence" }
+func (r *gdprEvidence001) Severity() Severity   { return SeverityMedium }
 
 func (r *gdprEvidence001) Evaluate(g GraphQuerier) ([]RuleResult, error) {
 	nodes, err := g.NodesByLabel("ChecklistItem")
@@ -531,7 +531,7 @@ func (r *gdprEvidence001) Evaluate(g GraphQuerier) ([]RuleResult, error) {
 		} else {
 			results = append(results, RuleResult{
 				RuleID: r.ID(), Status: EvalFail, NodeID: n.ID,
-				Details: "Compliant checklist item has no evidence attached",
+				Details:  "Compliant checklist item has no evidence attached",
 				Severity: r.Severity(),
 			})
 		}
@@ -588,13 +588,13 @@ func checkHasEdge(g GraphQuerier, ruleID string, sev Severity, label, edgeLabel 
 		if found {
 			results = append(results, RuleResult{
 				RuleID: ruleID, Status: EvalPass, NodeID: n.ID,
-				Details: fmt.Sprintf("%s has %s edge", label, edgeLabel),
+				Details:  fmt.Sprintf("%s has %s edge", label, edgeLabel),
 				Severity: sev,
 			})
 		} else {
 			results = append(results, RuleResult{
 				RuleID: ruleID, Status: EvalFail, NodeID: n.ID,
-				Details: fmt.Sprintf("%s missing %s edge", label, edgeLabel),
+				Details:  fmt.Sprintf("%s missing %s edge", label, edgeLabel),
 				Severity: sev,
 			})
 		}
