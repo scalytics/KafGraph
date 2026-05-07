@@ -14,29 +14,64 @@ Apache 2.0. Open beta.
 ---
 
 ## What KafGraph is
-
+ 
 KafGraph is the memory layer for AI agent teams. It ingests every conversation,
 decision, and artifact that flows through your agent group, structures it as a
 queryable property graph, and exposes it back to agents through tool calls. No
 agent ever starts from zero.
-
+ 
+```mermaid
+%%{init: {'theme':'neutral', 'themeVariables': {
+  'primaryColor':'transparent',
+  'primaryBorderColor':'#1D9E75',
+  'primaryTextColor':'#1D9E75',
+  'lineColor':'#1D9E75',
+  'clusterBkg':'transparent',
+  'clusterBorder':'#1D9E75',
+  'edgeLabelBackground':'transparent'
+}}}%%
+flowchart LR
+    subgraph Agents["AI agent team"]
+        A1[agent.researcher]
+        A2[agent.coder]
+        A3[agent.reviewer]
+        A4[agent.lead]
+    end
+ 
+    subgraph Transport["Transport"]
+        K[Kafka topics<br/>group.&lt;name&gt;.*]
+        S[(S3 segments<br/>MinIO)]
+    end
+ 
+    subgraph KG["KafGraph"]
+        P[KafScale processor<br/>5-layer pipeline]
+        G[(Property graph<br/>BadgerDB)]
+        BT[Brain Tool API<br/>7 tools]
+        Bolt[Bolt v4 / OpenCypher]
+    end
+ 
+    A1 & A2 & A3 & A4 -- conversations,<br/>decisions,<br/>shared memory --> K
+    K --> S
+    S -- direct read,<br/>no broker hop --> P
+    P --> G
+    G --> BT
+    G --> Bolt
+    BT -- brain_search<br/>brain_recall<br/>brain_capture<br/>brain_reflect --> A1 & A2 & A3 & A4
+    Bolt -- inspection,<br/>dashboards --> External((Bolt clients))
+ 
+    classDef default fill:transparent,stroke:#1D9E75,color:#1D9E75
+    class A1,A2,A3,A4,P,G,BT,Bolt,K,S,External default
 ```
-Agent conversations  →  Kafka topics  →  KafScale processor  →  KafGraph (BadgerDB)
-                                                                       │
-                                                  ┌────────────────────┤
-                                                  │                    │
-                                            Brain Tool API      Cypher / Bolt v4
-                                            (agent access)      (tooling access)
-```
-
+ 
 Two deployment modes from one binary:
-
+ 
 * **Embedded.** A local brain for one agent. BadgerDB on disk, Brain Tool API on
   localhost. Useful for per-agent personalization, coding agents on a developer
   laptop, or air-gapped single-agent workloads.
 * **Distributed.** A shared brain for an agent team. Gossip-based cluster
   membership via `hashicorp/memberlist`, agentID partitioning via FNV-1a,
   cross-partition fan-out RPC. The mode no other agent memory system ships.
+
 
 ## Why "shared brain"
 
