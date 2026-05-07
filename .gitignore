@@ -1,3 +1,7 @@
+# Local AI assistant context (not committed)
+CLAUDE.md
+.claude/
+
 # Binaries
 *.exe
 *.exe~
