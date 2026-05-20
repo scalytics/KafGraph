@@ -20,10 +20,18 @@ spec:
       # Disable legacy K8s service env injection — it creates KAFGRAPH_PORT=tcp://…
       # which viper tries to parse as the config `port` int.
       enableServiceLinks: false
+      {{- with .Values.podSecurityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       containers:
         - name: kafgraph
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
+          {{- with .Values.containerSecurityContext }}
+          securityContext:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
           ports:
             - { name: http, containerPort: 7474 }
             - { name: bolt, containerPort: 7687 }
