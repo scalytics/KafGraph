@@ -67,5 +67,21 @@ serviceAccount:
   create: true
   name: ""
 
+# Prometheus metrics + ServiceMonitor (PLAN-06 iter-7 E-12 / G-007).
+#
+# IMPORTANT: kafgraph binary does not yet serve /metrics; the binary
+# needs a promhttp.Handler() registered. Tracked as BUG-0011 in
+# scalytics-all-in-one-meta/BUGS/. The template ships gated by
+# `metrics.enabled` (default false) so the chart layer is audit-clean;
+# flip on after BUG-0011 closes.
+metrics:
+  enabled: false
+  path: "/metrics"
+  port: 7474
+  serviceMonitor:
+    labels: {}
+    interval: 30s
+    scrapeTimeout: 10s
+
 labels:
   app.kubernetes.io/part-of: ops-foundation
