@@ -23,6 +23,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/scalytics/kafgraph/internal/brain"
 	"github.com/scalytics/kafgraph/internal/cluster"
 	"github.com/scalytics/kafgraph/internal/compliance"
@@ -107,6 +108,9 @@ func NewHTTPServer(addr string, g *graph.Graph, args ...any) *HTTPServer {
 	}
 	mux.HandleFunc("GET /readyz", s.handleReadyz)
 	mux.HandleFunc("GET /version", s.handleVersion)
+
+	// BUG-0011: Prometheus scrape endpoint. Go runtime + process metrics only.
+	mux.Handle("GET /metrics", promhttp.Handler())
 
 	// Register CRUD + query + brain tool routes
 	registerRoutes(mux, g, opts.exec, opts.brain)
