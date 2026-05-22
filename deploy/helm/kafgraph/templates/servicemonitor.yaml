@@ -1,9 +1,11 @@
 {{- /*
   servicemonitor.yaml — Prometheus Operator ServiceMonitor for kafgraph.
-  Gated by `.Values.metrics.enabled` (default false). PLAN-06 iter-7
-  E-12 / G-007. BUG-0011: binary instrumentation pending.
+  Rendered only when metrics are enabled AND the Prometheus Operator CRD
+  is installed, so enabling metrics is safe on clusters without it (the
+  default SAO demo ships no Prometheus). PLAN-06 iter-7 E-12 / G-007.
+  BUG-0011: the rc4 image serves /metrics (promhttp).
 */}}
-{{- if .Values.metrics.enabled }}
+{{- if and .Values.metrics.enabled (.Capabilities.APIVersions.Has "monitoring.coreos.com/v1") }}
 apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
 metadata:

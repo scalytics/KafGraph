@@ -1,8 +1,9 @@
 image:
   # Local-only / NAS-pinned (PLAN-06 E-03 / audit F-1). Iter-8 flips
   # to ghcr.io. No v-semver tag on NAS yet; pinning to the latest RC.
+  # rc4 is the first tag that serves /metrics (BUG-0011).
   repository: 192.168.0.131:5100/scalytics/kafgraph
-  tag: "2026.05-rc2"
+  tag: "2026.05-rc4"
   pullPolicy: IfNotPresent
 
 replicaCount: 1
@@ -75,7 +76,8 @@ serviceAccount:
 # `metrics.enabled` (default false) so the chart layer is audit-clean;
 # flip on after BUG-0011 closes.
 metrics:
-  enabled: false
+  # BUG-0011: enabled now that the rc4 image serves /metrics (promhttp).
+  enabled: true
   path: "/metrics"
   port: 7474
   serviceMonitor:
