@@ -27,7 +27,7 @@ jobs:
     outputs:
       pages_configured: ${{ steps.pages_site.outputs.configured }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Detect Pages site
         id: pages_site
