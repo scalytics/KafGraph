@@ -4,7 +4,7 @@ go 1.25.0
 
 require (
 	github.com/blevesearch/bleve/v2 v2.6.0
-	github.com/dgraph-io/badger/v4 v4.9.1
+	github.com/dgraph-io/badger/v4 v4.9.6
 	github.com/hashicorp/memberlist v0.5.4
 	github.com/prometheus/client_golang v1.23.2
 	github.com/spf13/viper v1.21.0
