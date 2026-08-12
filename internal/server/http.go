@@ -24,6 +24,7 @@ import (
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+
 	"github.com/scalytics/kafgraph/internal/brain"
 	"github.com/scalytics/kafgraph/internal/cluster"
 	"github.com/scalytics/kafgraph/internal/compliance"
