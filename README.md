@@ -246,8 +246,8 @@ complete agent platform. Each is independently useful.
 
 | Layer | Project | Role |
 |-------|---------|------|
-| Transport | [KafScale](https://github.com/scalytics/kafscale) | S3-native, Kafka-compatible streaming. Stateless brokers, infinite retention. |
-| Runtime | [KafClaw](https://github.com/scalytics/KafClaw) | Agent groups, skill routing, policy mesh, tool registry, shared memory topics. |
+| Transport | [KafScale](https://github.com/KafScale/platform) | S3-native, Kafka-compatible streaming. Stateless brokers, infinite retention. |
+| Runtime | [KafClaw](https://github.com/KafClaw/KafClaw) | Agent groups, skill routing, policy mesh, tool registry, shared memory topics. |
 | **Brain** | **KafGraph** | **The shared brain. Property graph, reflection engine, Brain Tool API.** |
 | Observability | [kafSIEM](https://github.com/scalytics/kafSIEM) | Streaming threat detection and audit on the same Kafka backbone. |
 
@@ -314,8 +314,8 @@ KafGraph follows the design discipline in `CLAUDE.md`.
 
 KafGraph is built and maintained by [Scalytics](https://www.scalytics.io),
 founded by the original creators of [Apache Wayang](https://wayang.apache.org).
-The same engineering team maintains [KafScale](https://github.com/scalytics/kafscale)
-and [KafClaw](https://github.com/scalytics/KafClaw). The release discipline that
+The same engineering team maintains [KafScale](https://github.com/KafScale/platform)
+and [KafClaw](https://github.com/KafClaw/KafClaw). The release discipline that
 ships Wayang code through the Apache Software Foundation process applies here:
 race detection, coverage gates, security scanning, and reproducible builds.
 
@@ -329,3 +329,6 @@ Apache 2.0. See [LICENSE](LICENSE).
 * Documentation: `docs/`
 * Issues: <https://github.com/scalytics/KafGraph/issues>
 * Scalytics: <https://www.scalytics.io>
+* All Scalytics open source: <https://www.scalytics.io/open-source>
+* Related: [kshark-core](https://github.com/scalytics/kshark-core), Kafka connectivity diagnostics and an example of how agents can use our tools to debug Kafka clusters. [infinimesh](https://infinimesh.org/), a self-hosted IoT device platform from the same team.
+* Governed AI agents on Kafka with commercial support: [Lascaris](https://www.scalytics.io/lascaris)
