@@ -49,7 +49,7 @@ func SeedComplianceScenario(g *graph.Graph) (*ComplianceResult, error) {
 
 	// --- OrgSetup ---
 	_, err := g.CreateNode("OrgSetup", graph.Properties{
-		"orgName":              "Scalytics GmbH",
+		"orgName":              "Scalytics, Inc.",
 		"dpoName":              "Dr. Maria Schmidt",
 		"dpoEmail":             "dpo@scalytics.io",
 		"supervisoryAuthority": "BfDI (Germany)",
