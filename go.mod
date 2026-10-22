@@ -2,6 +2,8 @@ module github.com/scalytics/kafgraph
 
 go 1.25.0
 
+toolchain go1.26.10
+
 require (
 	github.com/blevesearch/bleve/v2 v2.6.1
 	github.com/dgraph-io/badger/v4 v4.9.6
